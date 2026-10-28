@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8"/>
+<style>
+  :root { color-scheme: dark; }
+  body { width: 340px; margin: 0; background: #060913; color: #e6edf7;
+         font: 12px/1.5 ui-sans-serif, system-ui, sans-serif; }
+  header { padding: 10px 12px; border-bottom: 1px solid #1c2a45; display: flex;
+           align-items: center; gap: 8px; }
+  header h1 { font-size: 11px; letter-spacing: .2em; margin: 0; font-weight: 900; }
+  #outage { margin: 10px 12px; padding: 9px 11px; border-radius: 10px;
+            background: #0d1526; border: 1px solid #1c2a45; }
+  #outage .st { font-weight: 900; letter-spacing: .08em; font-size: 11px; }
+  #outage .dt { color: #8aa0bf; font-size: 10.5px; margin-top: 3px; }
+  .sect { margin: 10px 12px; }
+  .sect h2 { font-size: 9px; letter-spacing: .2em; color: #64748b; margin: 0 0 6px; text-transform: uppercase; }
+  select, button { width: 100%; box-sizing: border-box; border-radius: 9px;
+                   border: 1px solid #1c2a45; background: #0a1120; color: #e6edf7;
+                   padding: 8px 9px; font-size: 11.5px; font-weight: 600; }
+  select { margin-bottom: 8px; }
+  .row { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 6px; }
+  button { cursor: pointer; font-weight: 800; }
+  button:hover { border-color: #33456b; }
+  #boost { color: #22c55e; border-color: rgba(34,197,94,.55); }
+  #normal { color: #8aa0bf; }
+  #pause { color: #f59e0b; border-color: rgba(245,158,11,.55); }
+  #resume { color: #22d3ee; border-color: rgba(34,211,238,.55); }
+  #speed { color: #a78bfa; border-color: rgba(167,139,250,.55); }
+  #result { margin: 8px 12px; padding: 8px 11px; border-radius: 10px; background: #0d1526;
+            border: 1px solid #1c2a45; font-family: ui-monospace, monospace; font-size: 10.5px;
+            color: #8aa0bf; min-height: 16px; }
+  footer { padding: 8px 12px 12px; display: flex; justify-content: space-between; }
+  footer a { color: #38bdf8; font-size: 10px; text-decoration: none; }
+</style>
+</head>
+<body>
+<header>
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" stroke-width="1.8" stroke-linecap="round"><path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/></svg>
+  <h1>AVANZA CONTROL</h1>
+</header>
+<div id="outage"><span class="st" id="o-state">LOADING…</span><div class="dt" id="o-detail"></div></div>
+<div class="sect">
+  <h2>Device</h2>
+  <select id="devices"><option value="">loading registry…</option></select>
+  <div class="row">
+    <button id="boost">🎓 BOOST 1H (EF)</button>
+    <button id="normal">· BACK TO NORMAL</button>
+  </div>
+  <div class="row">
+    <button id="pause">⏸ PAUSE 1H</button>
+    <button id="resume">▶ RESUME</button>
+  </div>
+</div>
+<div class="sect">
+  <h2>WAN speed test (router-side)</h2>
+  <button id="speed">⚡ RUN / REFRESH RESULT</button>
+</div>
+<div id="result"></div>
+<footer>
+  <a href="#" id="open-dash">open dashboard ↗</a>
+  <a href="#" id="open-options">settings</a>
+</footer>
+<script src="popup.js"></script>
+</body>
+</html>

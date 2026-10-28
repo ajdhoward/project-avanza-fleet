@@ -1,0 +1,226 @@
+# ============================================================
+# PROJECT AVANZA / avanza-router-core / configs/firewall.yml
+# OpenWrt 25.12.6 - fw4 (nftables) zoning
+# Restricted-YAML subset parsed by scripts/transpile_config.sh:
+#   section:      col 0   "name:"
+#   list item:    col 2   "- key: value"
+#   item field:   col 4   "key: value"
+#   nested list:  col 6   "- value"
+#   meta MUST be the first section. No inline comments on value lines.
+# ============================================================
+meta:
+  prefix: avanza
+
+zones:
+  - name: wan
+    label: Upstream Internet
+    input: REJECT
+    output: ACCEPT
+    forward: REJECT
+    masq: "1"
+    masq6: "1"
+    networks:
+      - wan
+      - wan6
+
+  - name: lan
+    label: Management Zone
+    input: ACCEPT
+    output: ACCEPT
+    forward: DROP
+    masq: "0"
+    networks:
+      - lan
+
+  - name: media
+    label: Media and Streaming Zone
+    input: DROP
+    output: ACCEPT
+    forward: DROP
+    masq: "0"
+    networks:
+      - media
+
+  - name: iot
+    label: Smart Home IoT Zone
+    input: DROP
+    output: ACCEPT
+    forward: DROP
+    masq: "0"
+    networks:
+      - iot
+
+  - name: guest
+    label: Guest Network
+    input: DROP
+    output: ACCEPT
+    forward: DROP
+    masq: "1"
+    networks:
+      - guest
+
+  - name: fleet
+    label: Fleet Management VLAN 40
+    input: ACCEPT
+    output: ACCEPT
+    forward: DROP
+    masq: "0"
+    networks:
+      - fleet
+
+forwards:
+  - src: lan
+    dest: wan
+  - src: lan
+    dest: media
+  - src: lan
+    dest: iot
+  - src: media
+    dest: wan
+  - src: iot
+    dest: wan
+  - src: guest
+    dest: wan
+  - src: fleet
+    dest: wan
+  - src: lan
+    dest: fleet
+
+rules:
+  - name: Avanza-WAN-WireGuard-Ingress
+    src: wan
+    proto: udp
+    dest_port: "51820"
+    target: ACCEPT
+
+  - name: Avanza-mDNS-Media-To-Mgmt
+    src: media
+    dest: lan
+    proto: udp
+    dest_port: "5353"
+    target: ACCEPT
+
+  - name: Avanza-mDNS-Mgmt-To-Media
+    src: lan
+    dest: media
+    proto: udp
+    dest_port: "5353"
+    target: ACCEPT
+
+  - name: Avanza-mDNS-IoT-To-Mgmt
+    src: iot
+    dest: lan
+    proto: udp
+    dest_port: "5353"
+    target: ACCEPT
+
+  - name: Avanza-mDNS-Mgmt-To-IoT
+    src: lan
+    dest: iot
+    proto: udp
+    dest_port: "5353"
+    target: ACCEPT
+
+  - name: Avanza-IoT-DNS-UDP-To-Resolver
+    src: iot
+    dest: lan
+    proto: udp
+    dest_port: "53"
+    target: ACCEPT
+
+  - name: Avanza-IoT-DNS-TCP-To-Resolver
+    src: iot
+    dest: lan
+    proto: tcp
+    dest_port: "53"
+    target: ACCEPT
+
+  - name: Avanza-IoT-NTP-To-Router
+    src: iot
+    dest: lan
+    proto: udp
+    dest_port: "123"
+    target: ACCEPT
+
+  - name: Avanza-IoT-Lateral-Reject-Media
+    src: iot
+    dest: media
+    proto: all
+    target: REJECT
+
+  - name: Avanza-DSCP-Realtime-Console-EF
+    src: media
+    dest: wan
+    src_ip: 192.168.20.43/32
+    proto: all
+    target: DSCP
+    set_dscp: "0x2e"
+
+  - name: Avanza-DSCP-MediaZone-AF41
+    src: media
+    dest: wan
+    src_ip: 192.168.20.0/24
+    proto: all
+    target: DSCP
+    set_dscp: "0x28"
+
+  - name: Avanza-DSCP-IoT-Bulk-CS1
+    src: iot
+    dest: wan
+    src_ip: 192.168.30.0/24
+    proto: all
+    target: DSCP
+    set_dscp: "0x08"
+
+  - name: Avanza-Guest-DHCP-To-Router
+    src: guest
+    proto: udp
+    dest_port: "67 68"
+    target: ACCEPT
+
+  - name: Avanza-Guest-DNS-UDP-To-Router
+    src: guest
+    proto: udp
+    dest_port: "53"
+    target: ACCEPT
+
+  - name: Avanza-Guest-DNS-TCP-To-Router
+    src: guest
+    proto: tcp
+    dest_port: "53"
+    target: ACCEPT
+
+  - name: Avanza-Guest-NTP-To-Router
+    src: guest
+    proto: udp
+    dest_port: "123"
+    target: ACCEPT
+
+redirects:
+  - name: Avanza-DNS-Hijack-Media
+    src: media
+    proto: tcp udp
+    src_dport: "53"
+    dest_ip: 192.168.20.1
+    dest_port: "53"
+    target: DNAT
+
+  - name: Avanza-DNS-Hijack-IoT
+    src: iot
+    proto: tcp udp
+    src_dport: "53"
+    dest_ip: 192.168.30.1
+    dest_port: "53"
+    target: DNAT
+
+  - name: Avanza-DNS-Hijack-Guest
+    src: guest
+    proto: tcp udp
+    src_dport: "53"
+    dest_ip: 192.168.40.1
+    dest_port: "53"
+    target: DNAT
+
+nftables_includes:
+  - path: /usr/share/nftables.d/ruleset.d/10-avanza-lanes.nft
+    source: nft/10-avanza-lanes.nft

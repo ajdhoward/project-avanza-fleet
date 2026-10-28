@@ -1,0 +1,18 @@
+# ============================================================
+# PROJECT AVANZA / avanza-router-core / configs/umdns.yml
+# Native multicast DNS/DNS-SD responder -> /etc/config/umdns
+# Listing two bridges makes umdns reflect discovery traffic
+# between them (Management <-> Media): Fire TV / cast targets
+# discovered by the phone without opening general lateral
+# routing. Pair with the udp/5353 rules in firewall.yml.
+# br-iot is intentionally NOT listed: IoT stays out of mDNS
+# reflection by default (privacy + attack surface).
+# ============================================================
+meta:
+  prefix: avanza
+
+umdns:
+  enabled: "1"
+  networks:
+    - br-lan
+    - br-media

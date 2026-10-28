@@ -6,6 +6,9 @@
   "description": "AVANZA edge fleet core: MCP JSON-RPC 2.0 bridge, telemetry ingestion, server-driven UI on Cloudflare Workers",
   "scripts": {
     "typecheck": "tsc --noEmit",
+    "check": "tsc --noEmit",
+    "types": "wrangler types",
+    "tail": "wrangler tail",
     "dev": "wrangler dev",
     "deploy": "wrangler deploy"
   },

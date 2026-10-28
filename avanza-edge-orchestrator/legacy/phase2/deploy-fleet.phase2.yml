@@ -1,0 +1,103 @@
+name: deploy-fleet
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "avanza-router-core/**"
+      - "avanza-router-secondary/**"
+      - "avanza-edge-orchestrator/**"
+      - "avanza-generative-ui/artifacts/**"
+      - "avanza-infra-iac/**"
+      - ".github/workflows/deploy-fleet.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fleet-deploy
+  cancel-in-progress: false
+
+env:
+  CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+  CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+jobs:
+  lint:
+    name: Validate fleet configs (dry-run linter)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Fleet lint (shell syntax, both transpilers, YAML/JSON/TS parse)
+        run: sh avanza-infra-iac/scripts/lint_fleet.sh
+      - name: Worker strict typecheck (fleet API + MCP server)
+        run: |
+          cd avanza-edge-orchestrator
+          npm install --no-audit --no-fund
+          npx tsc --noEmit
+
+  bundle-deploy:
+    name: Bundle → R2 → KV version bump → deploy Workers
+    needs: lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Compute fleet version
+        run: echo "VERSION=git-$(echo "$GITHUB_SHA" | cut -c1-12)" >> "$GITHUB_ENV"
+
+      - name: Build primary bundle (C7 v5)
+        run: |
+          cd avanza-router-core
+          tar czf /tmp/primary.tar.gz configs nft scripts router
+          sha256sum /tmp/primary.tar.gz | cut -d' ' -f1 > /tmp/primary.sha256
+          echo "PRIMARY_SHA=$(cat /tmp/primary.sha256)" >> "$GITHUB_ENV"
+          ls -la /tmp/primary.tar.gz
+
+      - name: Build secondary bundle (W8968 v3)
+        run: |
+          cd avanza-router-secondary
+          tar czf /tmp/secondary.tar.gz configs scripts
+          sha256sum /tmp/secondary.tar.gz | cut -d' ' -f1 > /tmp/secondary.sha256
+          echo "SECONDARY_SHA=$(cat /tmp/secondary.sha256)" >> "$GITHUB_ENV"
+
+      - name: Upload bundles to R2 (versioned + latest)
+        run: |
+          npx wrangler@4 r2 object put "avanza-backups/fleet/${VERSION}/primary.tar.gz" \
+            --file=/tmp/primary.tar.gz --content-type=application/gzip --remote
+          npx wrangler@4 r2 object put "avanza-backups/fleet/${VERSION}/secondary.tar.gz" \
+            --file=/tmp/secondary.tar.gz --content-type=application/gzip --remote
+          npx wrangler@4 r2 object put "avanza-backups/fleet/latest/primary.tar.gz" \
+            --file=/tmp/primary.tar.gz --content-type=application/gzip --remote
+          npx wrangler@4 r2 object put "avanza-backups/fleet/latest/secondary.tar.gz" \
+            --file=/tmp/secondary.tar.gz --content-type=application/gzip --remote
+
+      - name: Bump fleet version token in KV
+        run: |
+          npx wrangler@4 kv key put fleet:config:version \
+            "{\"version\":\"${VERSION}\",\"primary\":{\"sha256\":\"${PRIMARY_SHA}\"},\"secondary\":{\"sha256\":\"${SECONDARY_SHA}\"}}" \
+            --binding=AVANZA_KV --config=avanza-infra-iac/wrangler.toml --env=primary --remote
+
+      - name: Sync dashboard artifact into Worker assets
+        run: cp avanza-generative-ui/artifacts/avanza-topology-matrix.html \
+                 avanza-edge-orchestrator/public/index.html
+
+      - name: Deploy fleet workers (primary production + secondary canary)
+        run: |
+          npx wrangler@4 deploy --config=avanza-infra-iac/wrangler.toml --env primary
+          npx wrangler@4 deploy --config=avanza-infra-iac/wrangler.toml --env secondary
+
+      - name: Post-deploy smoke
+        run: |
+          sleep 8
+          npx wrangler@4 deployments list --config=avanza-infra-iac/wrangler.toml --env primary || true
+          echo "Fleet version ${VERSION} live. Agents converge on next 60s heartbeat:"
+          echo "  primary  sha256=${PRIMARY_SHA}"
+          echo "  secondary sha256=${SECONDARY_SHA}"

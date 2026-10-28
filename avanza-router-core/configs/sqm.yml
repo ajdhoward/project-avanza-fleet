@@ -1,0 +1,25 @@
+# ============================================================
+# PROJECT AVANZA / avanza-router-core / configs/sqm.yml
+# CAKE shaping via sqm-scripts-cake -> /etc/config/sqm
+# Rates are kbit/s. Shape at ~85-90% of measured line rate so
+# CAKE (not the CPU) is the bottleneck. Example line: 450/22.
+# overhead guidance: PPPoE-on-ethernet=8, +VLAN=12, DOCSIS~22.
+# Host fairness: CAKE triple-isolation + nat (piece_of_cake.qos
+# default) gives per-host fairness in both directions; DSCP
+# marks from firewall.yml/agent land in diffserv3 tins:
+#   EF=voice tin, AF41=video tin, CS1/LE=bulk tin.
+# ============================================================
+meta:
+  prefix: avanza
+
+queue:
+  interface: wan
+  download: "400000"
+  upload: "20000"
+  qdisc: cake
+  script: piece_of_cake.qos
+  qdisc_advanced: "1"
+  linklayer: ethernet
+  overhead: "8"
+  debug: "0"
+  verbosity: "0"

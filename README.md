@@ -129,6 +129,39 @@ An integrated 4-tier network fabric, deployed as this monorepo:
 | `avanza-edge-orchestrator/public/index.html` | Cache-API static SPA monitoring framework | §4 |
 | `README.md` | This document — solution matrix blueprint + AI directives | — |
 
+### 3.1 Cooperative component set (merged from the distributed cluster)
+
+The unified monorepo also absorbs the cooperative cluster's adjacent
+components, preserved intact and auditable:
+
+| Path | Role |
+|---|---|
+| `avanza-app-expo/` | Expo TV/mobile client — server-driven UI over the edge stream (`/rpc`) |
+| `avanza-browser-extension/` | Fleet status popup + options page extension |
+| `avanza-companion-linux/` | systemd companion daemon (`avanza-companion.sh` + unit + env) |
+| `avanza-generative-ui/` | Generative topology canvas (`TopologyCanvas.tsx`) + rendered artifact |
+| `avanza-infra-iac/` | Legacy split-repo IaC profile (`wrangler.toml`, `lint_fleet.sh`) retained for reference |
+| `avanza-router-core/configs/`, `nft/`, `scripts/` | Firewall/SQM/umDNS declarative profiles, nft lane rules, speedtest + config transpiler |
+| `avanza-router-secondary/scripts/` | `secondary_agent.sh`, `avanza-switch.init`, YAML→UCI transpilers |
+| `docs/` | Cloudflare plan audit, edge caching, gap analysis, Phase-II architecture records |
+
+### 3.2 Generation profiles
+
+Two orchestrator generations exist in the cluster lineage. The **mandated
+deployment generation** (this repo's canonical `avanza-edge-orchestrator/`
+tree — `src/mcp_server.ts` single-file DO core, `wrangler.toml`, `schema/
+d1_schema.sql`, `public/index.html`) is the `wrangler deploy` surface and is
+wire-compatible with `lightweight_agent_v2.sh`. The cluster's earlier
+**Phase-II generation** (multi-module worker: `traffic_classifier.ts`,
+`state_do.ts`, `outage_oracle.ts`, `weekly_report.ts`, `types.ts`) is
+preserved losslessly and non-executing under
+`avanza-edge-orchestrator/legacy/phase2/` with its own wrangler profile
+(`wrangler.phase2.toml`), schema, SPA, and MCP contract notes (`MCP.md`).
+Superseded Phase-II router artifacts are likewise retained as
+`*.phase2.*` beside their mandated successors. Cloudflare AI must verify the
+legacy profile is inert: it is excluded from the deploy typecheck scope and
+from `wrangler deploy` (which reads only the canonical `wrangler.toml`).
+
 ## 4. ARCHITECTURE AND DATA FLOW
 
 ```
