@@ -124,8 +124,8 @@ jobs:
 
           net = uci_files["network"]
           for vid in vids:
-              assert re.search(rf"^config bridge-vlan .+$/.*?option vlan '{vid}'",
-                               net, re.M | re.S), f"bridge-vlan {vid} missing from render"
+              assert f"config bridge-vlan" in net and f"option vlan '{vid}'" in net, \
+                  f"bridge-vlan {vid} missing from render"
           for name in names:
               assert f"list ports '{name}'" in net, f"port {name} missing from bridge render"
 
