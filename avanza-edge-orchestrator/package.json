@@ -1,0 +1,17 @@
+{
+  "name": "avanza-edge-orchestrator",
+  "version": "2.0.0",
+  "private": true,
+  "type": "module",
+  "description": "AVANZA edge fleet core: MCP JSON-RPC 2.0 bridge, telemetry ingestion, server-driven UI on Cloudflare Workers",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20261023.1",
+    "typescript": "^5.9.2",
+    "wrangler": "^4.42.0"
+  }
+}

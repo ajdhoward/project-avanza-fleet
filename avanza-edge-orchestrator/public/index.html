@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<title>AVANZA Ecosystem Matrix — Fleet Operations</title>
+<style>
+  :root {
+    --bg: #0b1120;
+    --panel: #101a2e;
+    --panel-edge: #1c2a44;
+    --ink: #dbe6f5;
+    --ink-dim: #7d8ca6;
+    --accent: #38e0c8;
+    --accent-dim: #1a8f80;
+    --warn: #f5b14c;
+    --crit: #f4607a;
+    --good: #57d9a3;
+    --mono: "SFMono-Regular", ui-monospace, "Cascadia Mono", Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font: 14px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    min-height: 100vh;
+  }
+  header {
+    display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap;
+    gap: 10px; padding: 18px 26px;
+    border-bottom: 1px solid var(--panel-edge);
+    background: linear-gradient(180deg, #0e1729 0%, var(--bg) 100%);
+  }
+  h1 { font-size: 17px; font-weight: 650; letter-spacing: .04em; text-transform: uppercase; }
+  h1 span { color: var(--accent); }
+  .chip {
+    font-family: var(--mono); font-size: 11.5px; padding: 4px 10px;
+    border: 1px solid var(--panel-edge); border-radius: 999px; color: var(--ink-dim);
+  }
+  .chip b { color: var(--accent); font-weight: 600; }
+  main { padding: 22px 26px 40px; display: grid; gap: 18px; grid-template-columns: repeat(12, 1fr); }
+  section {
+    background: var(--panel); border: 1px solid var(--panel-edge);
+    border-radius: 12px; padding: 16px 18px; min-width: 0;
+  }
+  section.stat_grid { grid-column: span 12; display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; }
+  section.device_table { grid-column: span 7; }
+  section.topology_list { grid-column: span 5; }
+  section.feed { grid-column: span 7; }
+  section.bar_series { grid-column: span 5; }
+  section.footer_chip { grid-column: span 12; display: flex; gap: 12px; align-items: center; justify-content: space-between; }
+  h2 { font-size: 12px; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-dim); margin-bottom: 12px; font-weight: 600; }
+  .stat { background: #0d1526; border: 1px solid var(--panel-edge); border-radius: 10px; padding: 12px 14px; }
+  .stat .label { font-size: 11px; color: var(--ink-dim); letter-spacing: .08em; text-transform: uppercase; }
+  .stat .value { font-family: var(--mono); font-size: 22px; margin-top: 4px; color: var(--accent); }
+  .stat .value.dim { color: var(--ink); }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { text-align: left; color: var(--ink-dim); font-weight: 500; font-size: 11.5px; letter-spacing: .06em; text-transform: uppercase; padding: 6px 8px; border-bottom: 1px solid var(--panel-edge); }
+  td { padding: 7px 8px; border-bottom: 1px solid rgba(28, 42, 68, .5); font-family: var(--mono); font-size: 12.5px; white-space: nowrap; }
+  tr:last-child td { border-bottom: none; }
+  .badge { display: inline-block; padding: 2px 9px; border-radius: 999px; font-size: 11px; font-family: var(--mono); letter-spacing: .04em; }
+  .badge.good { background: rgba(87, 217, 163, .12); color: var(--good); }
+  .badge.fair { background: rgba(245, 177, 76, .12); color: var(--warn); }
+  .badge.poor, .badge.critical { background: rgba(244, 96, 122, .14); color: var(--crit); }
+  .badge.down, .badge.warn { background: rgba(245, 177, 76, .12); color: var(--warn); }
+  .badge.info { background: rgba(56, 224, 200, .1); color: var(--accent); }
+  .bars { display: flex; align-items: flex-end; gap: 5px; height: 120px; padding-top: 8px; }
+  .bars .bar { flex: 1; background: linear-gradient(180deg, var(--accent) 0%, var(--accent-dim) 100%); border-radius: 4px 4px 0 0; min-height: 2px; position: relative; }
+  .bars .bar i { position: absolute; top: -18px; left: 50%; transform: translateX(-50%); font-style: normal; font-size: 9.5px; color: var(--ink-dim); font-family: var(--mono); white-space: nowrap; }
+  .feedline { display: flex; gap: 10px; padding: 6px 4px; border-bottom: 1px solid rgba(28, 42, 68, .5); font-size: 12.5px; align-items: baseline; }
+  .feedline:last-child { border-bottom: none; }
+  .feedline time { color: var(--ink-dim); font-family: var(--mono); font-size: 11px; flex: none; }
+  .muted { color: var(--ink-dim); }
+  .error { color: var(--crit); font-family: var(--mono); font-size: 12.5px; }
+  @media (max-width: 1080px) {
+    section.device_table, section.topology_list, section.feed, section.bar_series { grid-column: span 12; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>AVANZA <span>//</span> Ecosystem Matrix</h1>
+  <div style="display:flex; gap:10px; flex-wrap:wrap;">
+    <span class="chip" id="chip-version">fleet <b>—</b></span>
+    <span class="chip" id="chip-updated">updated <b>—</b></span>
+    <span class="chip">edge cache <b>s-maxage=60</b></span>
+  </div>
+</header>
+<main id="layout-root">
+  <section class="footer_chip">
+    <span class="muted">Server-driven OpenUI layout manifest loading…</span>
+    <span class="error" id="boot-error"></span>
+  </section>
+</main>
+<script>
+"use strict";
+
+const POLL_MS = 45000;
+const root = document.getElementById("layout-root");
+const bootError = document.getElementById("boot-error");
+
+function el(tag, attrs, text) {
+  const node = document.createElement(tag);
+  if (attrs) for (const k of Object.keys(attrs)) node.setAttribute(k, attrs[k]);
+  if (text !== undefined && text !== null) node.textContent = String(text);
+  return node;
+}
+
+function fmtBytes(kb) {
+  if (kb === null || kb === undefined || isNaN(kb)) return "—";
+  return (kb / 1024).toFixed(1) + " MB";
+}
+
+function fmtAgo(ts) {
+  if (!ts) return "—";
+  const s = Math.max(0, Math.round((Date.now() - ts) / 1000));
+  if (s < 90) return s + "s ago";
+  if (s < 5400) return Math.round(s / 60) + "m ago";
+  return Math.round(s / 3600) + "h ago";
+}
+
+async function fetchJson(url) {
+  const token = localStorage.getItem("avanza_read_token") || "";
+  const sep = url.includes("?") ? "&" : "?";
+  const res = await fetch(url + (token ? sep + "token=" + encodeURIComponent(token) : ""), { cache: "no-store" });
+  if (res.status === 401) throw new Error("read token required — set it in the footer field");
+  if (!res.ok) throw new Error(url + " → HTTP " + res.status);
+  return res.json();
+}
+
+function renderStatGrid(block, data) {
+  const sec = el("section", { class: "stat_grid" });
+  sec.appendChild(el("h2", null, block.title));
+  const devices = Array.isArray(data.devices) ? data.devices : [];
+  const online = devices.filter((d) => Date.now() - (d.ts || 0) < 300000).length;
+  const worstMem = devices.reduce((acc, d) => Math.min(acc, d.mem_avail_kb || Infinity), Infinity);
+  const maxCt = devices.reduce((acc, d) => Math.max(acc, d.conntrack || 0), 0);
+  const bestRx = devices.reduce((acc, d) => Math.max(acc, d.plc_rx_mbps || 0), 0);
+  const stats = [
+    ["Devices Online", online + " / " + devices.length, false],
+    ["Min Free RAM", isFinite(worstMem) ? fmtBytes(worstMem) : "—", worstMem < 12288],
+    ["Peak Conntrack", maxCt, maxCt > 12000],
+    ["PLC Rx (best)", bestRx ? bestRx + " Mbps" : "down", bestRx === 0],
+  ];
+  for (const [label, value, alert] of stats) {
+    const card = el("div", { class: "stat" });
+    card.appendChild(el("div", { class: "label" }, label));
+    card.appendChild(el("div", { class: "value" + (alert ? " dim" : "") }, value));
+    sec.appendChild(card);
+  }
+  return sec;
+}
+
+function renderDeviceTable(block, data) {
+  const sec = el("section", { class: "device_table" });
+  sec.appendChild(el("h2", null, block.title));
+  const devices = Array.isArray(data.devices) ? data.devices : [];
+  const table = el("table");
+  const thead = el("thead");
+  thead.appendChild(el("tr", null, null)).append(
+    el("th", null, "device"), el("th", null, "free ram"), el("th", null, "conntrack"),
+    el("th", null, "load"), el("th", null, "plc tx/rx"), el("th", null, "last report"),
+  );
+  const tbody = el("tbody");
+  for (const d of devices) {
+    const tr = el("tr");
+    tr.append(
+      el("td", null, d.device || "—"),
+      el("td", null, fmtBytes(d.mem_avail_kb)),
+      el("td", null, d.conntrack ?? "—"),
+      el("td", null, d.load1 !== undefined ? Number(d.load1).toFixed(2) : "—"),
+      el("td", null, (d.plc_tx_mbps || 0) + " / " + (d.plc_rx_mbps || 0) + " Mbps"),
+      el("td", null, fmtAgo(d.ts)),
+    );
+    tbody.appendChild(tr);
+  }
+  if (devices.length === 0) {
+    const tr = el("tr"); const td = el("td", { colspan: "6" }, "no telemetry yet — waiting for agent ingest");
+    td.className = "muted"; tr.appendChild(td); tbody.appendChild(tr);
+  }
+  table.append(thead, tbody);
+  sec.appendChild(table);
+  return sec;
+}
+
+function renderTopology(block, data) {
+  const sec = el("section", { class: "topology_list" });
+  sec.appendChild(el("h2", null, block.title));
+  const links = Array.isArray(data.plc_links) ? data.plc_links : [];
+  if (links.length === 0) {
+    sec.appendChild(el("div", { class: "muted" }, "no powerline link samples in retention window"));
+  }
+  for (const link of links) {
+    const age = Date.now() - (link.last_ts || 0);
+    const health = age > 1800000 ? "down" : (link.rx_mbps >= 150 ? "good" : link.rx_mbps >= 80 ? "fair" : "poor");
+    const line = el("div", { class: "feedline" });
+    const badge = el("span", { class: "badge " + health }, health.toUpperCase());
+    line.append(
+      badge,
+      el("span", { style: "font-family:var(--mono)" }, link.peer_mac || "?"),
+      el("span", { class: "muted" }, "tx " + (link.tx_mbps || 0) + " / rx " + (link.rx_mbps || 0) + " Mbps"),
+      el("span", { class: "muted" }, fmtAgo(link.last_ts)),
+    );
+    sec.appendChild(line);
+  }
+  return sec;
+}
+
+function renderAnomalies(block, data) {
+  const sec = el("section", { class: "feed" });
+  sec.appendChild(el("h2", null, block.title));
+  const anomalies = Array.isArray(data.anomalies) ? data.anomalies : [];
+  if (anomalies.length === 0) {
+    sec.appendChild(el("div", { class: "muted" }, "anomaly stream clear"));
+  }
+  for (const a of anomalies) {
+    const line = el("div", { class: "feedline" });
+    line.append(
+      el("span", { class: "badge " + (a.severity === "critical" ? "critical" : a.severity === "warn" ? "warn" : "info") }, a.severity || "info"),
+      el("time", null, new Date(Number(a.ts)).toLocaleTimeString()),
+      el("span", null, (a.device || "") + " · " + (a.kind || "")),
+      el("span", { class: "muted" }, a.detail || ""),
+    );
+    sec.appendChild(line);
+  }
+  return sec;
+}
+
+function renderSpeedtests(block, data) {
+  const sec = el("section", { class: "bar_series" });
+  sec.appendChild(el("h2", null, block.title));
+  const tests = (Array.isArray(data.speedtests) ? data.speedtests : []).slice(0, 16).reverse();
+  const bars = el("div", { class: "bars" });
+  const maxMbps = tests.reduce((acc, t) => Math.max(acc, t.mbps || 0), 1);
+  if (tests.length === 0) bars.appendChild(el("div", { class: "muted" }, "no edge throughput samples"));
+  for (const t of tests) {
+    const bar = el("div", { class: "bar", style: "height:" + Math.max(2, Math.round(((t.mbps || 0) / maxMbps) * 100)) + "%" });
+    bar.appendChild(el("i", null, Math.round(t.mbps || 0)));
+    bar.title = t.device + " · " + new Date(Number(t.ts)).toLocaleString() + " · " + (t.mbps || 0).toFixed(1) + " Mbps";
+    bars.appendChild(bar);
+  }
+  sec.appendChild(bars);
+  return sec;
+}
+
+function renderFooterChip(block, data) {
+  const sec = el("section", { class: "footer_chip" });
+  const left = el("span", { class: "muted" }, block.title);
+  const chip = el("span", { class: "chip" });
+  const b = el("b", null, (data && data.version) || "unknown");
+  chip.append("bundle ", b);
+  const tokenWrap = el("span", { style: "display:flex;gap:6px;align-items:center" });
+  const tokenInput = el("input", {
+    type: "password", placeholder: "read token (optional)", id: "token-field",
+    style: "background:#0d1526;border:1px solid var(--panel-edge);color:var(--ink);border-radius:8px;padding:6px 10px;font-family:var(--mono);font-size:11.5px;width:200px",
+  });
+  tokenInput.value = localStorage.getItem("avanza_read_token") || "";
+  tokenInput.addEventListener("change", () => {
+    localStorage.setItem("avanza_read_token", tokenInput.value);
+    render();
+  });
+  tokenWrap.append(tokenInput, chip);
+  sec.append(left, tokenWrap);
+  return sec;
+}
+
+const RENDERERS = {
+  stat_grid: renderStatGrid,
+  device_table: renderDeviceTable,
+  topology_list: renderTopology,
+  feed: renderAnomalies,
+  bar_series: renderSpeedtests,
+  footer_chip: renderFooterChip,
+};
+
+let layoutCache = null;
+
+async function render() {
+  try {
+    if (!layoutCache) layoutCache = await fetchJson("/api/ui/layout");
+    const blocks = Array.isArray(layoutCache.blocks) ? layoutCache.blocks : [];
+    const telemetryBlocks = blocks.filter((b) => b.data === "/api/dashboard/telemetry");
+    const versionBlocks = blocks.filter((b) => b.data === "/api/fleet/version");
+    const data = await fetchJson("/api/dashboard/telemetry");
+    root.replaceChildren();
+    for (const block of blocks) {
+      const renderer = RENDERERS[block.type];
+      if (!renderer) continue;
+      if (block.data === "/api/dashboard/telemetry") root.appendChild(renderer(block, data));
+      else if (block.data === "/api/fleet/version") {
+        try { root.appendChild(renderer(block, await fetchJson("/api/fleet/version"))); }
+        catch { root.appendChild(renderer(block, { version: "unauthorized" })); }
+      }
+    }
+    bootError.textContent = "";
+    document.getElementById("chip-version").innerHTML = "fleet <b>" + (data.fleet_version || "—") + "</b>";
+    document.getElementById("chip-updated").innerHTML = "updated <b>" + new Date().toLocaleTimeString() + "</b>";
+  } catch (e) {
+    bootError.textContent = String(e.message || e);
+  }
+}
+
+render();
+setInterval(render, POLL_MS);
+</script>
+</body>
+</html>

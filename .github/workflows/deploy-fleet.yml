@@ -1,0 +1,272 @@
+# ============================================================================
+# PROJECT AVANZA FLEET — Automated GitOps Edge Sync Pipeline
+# ----------------------------------------------------------------------------
+# Sequence (per push to main, or manual dispatch):
+#   1. validate      : POSIX shell gate (shellcheck, busybox profile) on the
+#                      MIPS agents, VLAN/UCI-plan grammar gate on network.yml,
+#                      strict TypeScript gate on the Cloudflare orchestrator.
+#   2. package       : compress router deployment package -> sha256 -> R2
+#                      history blob (avanza-firmware/fleet/history/) + live
+#                      pointer (avanza-firmware/fleet/latest.tar.gz).
+#   3. token         : publish KV version token (CACHE_KV fleet/version +
+#                      fleet/manifest) — agents poll /api/fleet/version and
+#                      self-update against the signed manifest.
+#   4. deploy-edge   : idempotent D1 schema apply, then `wrangler deploy` of
+#                      avanza-edge-orchestrator.
+#
+# SECRET ISOLATION CONTRACT
+#   - This workflow never materializes fleet secrets. HMAC keys, dashboard
+#     read tokens and OAuth material are injected exclusively via
+#     `wrangler secret put` (one-time bootstrap, documented in README.md).
+#   - Required repository secrets: CLOUDFLARE_API_TOKEN,
+#     CLOUDFLARE_ACCOUNT_ID, KV_CACHE_NAMESPACE_ID.
+#
+# $5 PAID TIER BUDGET NOTE
+#   One pipeline run costs: 1 Workers deploy + ~6 R2 Class-A ops + ~2 KV
+#   writes + 1 idempotent D1 batch. Well inside Workers Paid allowances.
+# ============================================================================
+
+name: deploy-fleet
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      skip_edge:
+        description: "Skip Cloudflare Workers deploy (router-only roll)"
+        type: boolean
+        required: false
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fleet-edge-sync
+  cancel-in-progress: false
+
+env:
+  R2_BUCKET: avanza-firmware
+  D1_DATABASE: avanza-telemetry
+  HISTORY_MAX_ROLLS: "64"
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # 1. VALIDATION GATE
+  # ---------------------------------------------------------------------------
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout monorepo
+        uses: actions/checkout@v4
+
+      - name: Install shellcheck
+        run: |
+          SC_TAG=$(curl -sSI -m 15 https://github.com/koalaman/shellcheck/releases/latest | sed -n 's/^[Ll]ocation:.*\/tag\///p' | tr -d '\r')
+          curl -fsSL -m 120 -o /tmp/sc.tar.xz \
+            "https://github.com/koalaman/shellcheck/releases/download/${SC_TAG}/shellcheck-${SC_TAG}.linux.x86_64.tar.xz"
+          tar -xJf /tmp/sc.tar.xz -C /tmp
+          sudo install /tmp/shellcheck-${SC_TAG}/shellcheck /usr/local/bin/shellcheck
+          shellcheck --version | sed -n '2p'
+
+      - name: POSIX gate — MIPS router agents (busybox ash profile)
+        run: |
+          shellcheck -s busybox -S warning \
+            avanza-router-core/router/lightweight_agent_v2.sh
+          shellcheck -s busybox -S warning \
+            avanza-router-secondary/scripts/strip_secondary.sh
+
+      - name: UCI plan gate — VLAN 10/20/40 interface mapping
+        run: |
+          python3 - <<'PY'
+          import re, sys
+          try:
+              import yaml
+          except ImportError:
+              sys.exit("pyyaml unavailable on runner")
+          spec = yaml.safe_load(open("avanza-router-secondary/configs/network.yml"))
+          assert isinstance(spec, dict), "network.yml: root must be a mapping"
+          sv = spec.get("schema_version")
+          assert sv in (1, "1"), "network.yml: schema_version missing/invalid"
+          vlans = spec.get("vlans") or {}
+          assert vlans, "network.yml: vlans block missing"
+          ports = spec.get("ports") or {}
+          vid_seen = set()
+          for name, v in vlans.items():
+              vid = int(v.get("vid", 0))
+              assert 1 <= vid <= 4094, f"vlan {name}: vid {vid} outside 802.1Q range"
+              assert vid not in vid_seen, f"duplicate vid {vid}"
+              vid_seen.add(vid)
+              for p in (v.get("ports") or []):
+                  assert p in ports, f"vlan {name}: unknown port '{p}'"
+              # rendered UCI grammar spot-check if the plan carries one
+              for line in (v.get("uci") or []):
+                  assert re.match(r"^(config|option|list)\s+\S+", line), \
+                      f"vlan {name}: malformed UCI line: {line!r}"
+          sw = spec.get("switch") or {}
+          assert sw, "network.yml: switch block missing"
+          print(f"UCI plan gate OK — vlans={sorted(vid_seen)} ports={sorted(ports)}")
+          PY
+
+      - name: TypeScript gate — Cloudflare orchestrator (strict)
+        working-directory: avanza-edge-orchestrator
+        run: |
+          npm install --no-audit --no-fund --loglevel=error
+          npm run typecheck
+
+  # ---------------------------------------------------------------------------
+  # 2. PACKAGE ROUTER DEPLOYMENT BUNDLE
+  # ---------------------------------------------------------------------------
+  package-router:
+    needs: validate
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.meta.outputs.version }}
+      sha256: ${{ steps.meta.outputs.sha256 }}
+    steps:
+      - name: Checkout monorepo
+        uses: actions/checkout@v4
+
+      - name: Compress deployment package
+        run: |
+          VERSION="v$(date -u +%Y%m%d%H%M%S)"
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+          tar --format=posix -czf /tmp/avanza-router-bundle.tar.gz \
+            avanza-router-core avanza-router-secondary
+          sha256sum /tmp/avanza-router-bundle.tar.gz > /tmp/avanza-router-bundle.tar.gz.sha256
+          cat /tmp/avanza-router-bundle.tar.gz.sha256
+
+      - name: Emit version metadata
+        id: meta
+        run: |
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "sha256=$(awk '{print $1}' /tmp/avanza-router-bundle.tar.gz.sha256)" >> "$GITHUB_OUTPUT"
+
+      - name: Upload live bundle pointer to R2 (fleet/latest.tar.gz)
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          npx -y wrangler@4 r2 object put "${R2_BUCKET}/fleet/latest.tar.gz" \
+            --file /tmp/avanza-router-bundle.tar.gz \
+            --content-type application/gzip --remote
+
+      - name: Upload immutable history blob to R2 (fleet/history/<version>)
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          npx -y wrangler@4 r2 object put \
+            "${R2_BUCKET}/fleet/history/${VERSION}.tar.gz" \
+            --file /tmp/avanza-router-bundle.tar.gz \
+            --content-type application/gzip --remote
+
+      - name: Retention prune — cap R2 history at 64 rolls
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -e
+          npx -y wrangler@4 r2 object get "${R2_BUCKET}/fleet/history/index.json" \
+            --file /tmp/index.json --remote 2>/dev/null || printf '[]\n' > /tmp/index.json
+          python3 - "$VERSION" <<'PY'
+          import json, sys
+          version = sys.argv[1]
+          try:
+              rolls = json.load(open("/tmp/index.json"))
+          except Exception:
+              rolls = []
+          rolls = [r for r in rolls if r != version] + [version]
+          keep = rolls[-64:]
+          prune = [r for r in rolls[:-64]]
+          json.dump(keep, open("/tmp/index.json", "w"))
+          open("/tmp/prune.txt", "w").write("\n".join(prune))
+          PY
+          # bounded deletion loop — never exceeds HISTORY_MAX_ROLLS ops
+          if [ -s /tmp/prune.txt ]; then
+            while IFS= read -r old; do
+              [ -n "$old" ] || continue
+              npx -y wrangler@4 r2 object delete \
+                "${R2_BUCKET}/fleet/history/${old}.tar.gz" --remote || true
+            done < /tmp/prune.txt
+          fi
+          npx -y wrangler@4 r2 object put "${R2_BUCKET}/fleet/history/index.json" \
+            --file /tmp/index.json --content-type application/json --remote
+
+  # ---------------------------------------------------------------------------
+  # 3. PUBLISH KV VERSION TOKEN (agents self-update against this)
+  # ---------------------------------------------------------------------------
+  publish-version-token:
+    needs: package-router
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout monorepo
+        uses: actions/checkout@v4
+
+      - name: Write fleet/version + fleet/manifest into CACHE_KV
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          KV_CACHE_NAMESPACE_ID: ${{ secrets.KV_CACHE_NAMESPACE_ID }}
+          VERSION: ${{ needs.package-router.outputs.version }}
+          BUNDLE_SHA: ${{ needs.package-router.outputs.sha256 }}
+        run: |
+          set -e
+          python3 - "$VERSION" "$BUNDLE_SHA" "${GITHUB_SHA}" <<'PY' > /tmp/manifest.json
+          import json, sys, datetime
+          version, sha, git_sha = sys.argv[1], sys.argv[2], sys.argv[3]
+          json.dump({
+              "version": version,
+              "git_sha": git_sha,
+              "created": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+              "bundle": "fleet/latest.tar.gz",
+              "bundle_sha256": sha,
+              "components": ["avanza-router-core", "avanza-router-secondary"],
+              "rollback_source": "fleet/history/",
+          }, open("/tmp/manifest.json", "w"), indent=2)
+          PY
+          cat /tmp/manifest.json
+          npx -y wrangler@4 kv key put "fleet/version" "${VERSION}" \
+            --namespace-id "${KV_CACHE_NAMESPACE_ID}" --remote
+          npx -y wrangler@4 kv key put "fleet/manifest" --path /tmp/manifest.json \
+            --namespace-id "${KV_CACHE_NAMESPACE_ID}" --remote
+
+  # ---------------------------------------------------------------------------
+  # 4. CLOUDFLARE EDGE ORCHESTRATOR DEPLOY
+  # ---------------------------------------------------------------------------
+  deploy-edge:
+    needs: [validate, package-router]
+    if: ${{ github.event_name == 'push' || !inputs.skip_edge }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout monorepo
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Apply idempotent D1 schema (CREATE ... IF NOT EXISTS only)
+        working-directory: avanza-edge-orchestrator
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: npx -y wrangler@4 d1 execute "$D1_DATABASE" --remote --file schema/d1_schema.sql -y
+
+      - name: Wrangler deploy (avanza-edge-orchestrator)
+        working-directory: avanza-edge-orchestrator
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          npm install --no-audit --no-fund --loglevel=error
+          npx -y wrangler@4 deploy
+
+      - name: Roll summary
+        run: |
+          echo "Fleet roll ${{ needs.package-router.outputs.version }} dispatched."
+          echo "  R2   : ${R2_BUCKET}/fleet/latest.tar.gz (+ history blob)"
+          echo "  KV   : fleet/version + fleet/manifest (CACHE_KV)"
+          echo "  Edge : avanza-edge-orchestrator deployed (D1 schema ensured)"

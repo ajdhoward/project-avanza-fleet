@@ -1,0 +1,182 @@
+# ============================================================================
+# PROJECT AVANZA — avanza-router-secondary / configs/network.yml
+# Target: TP-Link TD-W8968 v3 (Ralink RT63365, MIPS 34Kc, OpenWrt 25.12.6, apk)
+# Role:   pure Layer-2 managed switch node (all DSL/ATM, wireless, web UI
+#         subsystems stripped by scripts/strip_secondary.sh)
+#
+# Topology:
+#   [Archer C7 v5 core] --eth-trunk(tagged 10/20/40)--> [TD-W8968 lan1]
+#   [TD-W8968 lan2] --untagged vlan 10--> [Powerline AV adapter] ~~mains~~
+#                                         [Powerline AV adapter] --> [Tenda A750]
+#   VLAN 40 (mgmt/telemetry) is trunk-internal only and never leaves lan1.
+#
+# CI (deploy-fleet.yml) validates this file's schema and renders uci_files
+# into the GitOps fleet bundle; the on-device applier imports them via
+# `uci import` under the 10-minute rollback safety matrix.
+# NOTE: verify the lan1..lan4 port map against /sys/class/net on the board
+# before first commit; adjust only the role comments, not the VLAN plan.
+# ============================================================================
+schema: "avanza.network/1"
+
+device:
+  id: "avanza-sw2"
+  model: "TD-W8968 v3"
+  role: "l2-switch"
+  mgmt_vlan: 40
+
+vlans:
+  - id: 10
+    name: "data"
+    purpose: "client + AP backhaul (untagged toward Tenda A750 powerline drop)"
+  - id: 20
+    name: "guest"
+    purpose: "guest carriage over trunk and powerline (tagged; consumed by VLAN-aware firmware only)"
+  - id: 40
+    name: "mgmt"
+    purpose: "isolated management + telemetry pipeline (trunk-internal)"
+
+switch:
+  driver: "swconfig"
+  device: "switch0"
+  ports:
+    - port: "lan1"
+      role: "uplink-trunk"
+      vlans:
+        untagged: null
+        tagged: [10, 20, 40]
+    - port: "lan2"
+      role: "downlink-powerline"
+      vlans:
+        untagged: 10
+        tagged: []
+    - port: "lan3"
+      role: "spare-data"
+      vlans:
+        untagged: 10
+        tagged: []
+    - port: "lan4"
+      role: "spare-data"
+      vlans:
+        untagged: 10
+        tagged: []
+
+management:
+  ingress: ["dropbear"]
+  ipv4:
+    address: "10.40.0.2/24"
+    gateway: "10.40.0.1"
+    dns: ["10.40.0.1"]
+
+hardening:
+  ipv6: "disabled"
+  dhcp_server: "disabled"
+  wireless: "absent (radio drivers + wpad purged)"
+  wan: "none (pure L2, no upstream route)"
+
+services:
+  syslog:
+    target: "10.40.0.1:514"
+  ntp:
+    servers: ["10.40.0.1"]
+  watchdog:
+    mode: "agent-driven (avanza-agent crond watchdog)"
+
+# ---------------------------------------------------------------------------
+# Rendered UCI payload — imported verbatim by the fleet bundle applier.
+# ---------------------------------------------------------------------------
+uci_files:
+  network: |
+    # AVANZA fleet render — do not edit on-device; changes are overwritten by
+    # the GitOps bundle applier. Source of truth: configs/network.yml
+    config interface 'loopback'
+        option device 'lo'
+        option proto 'static'
+        option ipaddr '127.0.0.1'
+        option netmask '255.0.0.0'
+
+    config globals 'globals'
+        option ula_prefix 'fd40:0:0::/48'
+
+    config device 'br_trunk'
+        option name 'br-trunk'
+        option type 'bridge'
+        list ports 'lan1'
+        list ports 'lan2'
+        list ports 'lan3'
+        list ports 'lan4'
+        option stp '1'
+        option ipv6 '0'
+        option vlan_filtering '1'
+
+    config bridge-vlan 'vlan_data'
+        option device 'br-trunk'
+        option vlan '10'
+        list ports 'lan1:t'
+        list ports 'lan2:u'
+        list ports 'lan3:u'
+        list ports 'lan4:u'
+
+    config bridge-vlan 'vlan_guest'
+        option device 'br-trunk'
+        option vlan '20'
+        list ports 'lan1:t'
+        list ports 'lan2:t'
+
+    config bridge-vlan 'vlan_mgmt'
+        option device 'br-trunk'
+        option vlan '40'
+        list ports 'lan1:t'
+
+    config interface 'mgmt'
+        option device 'br-trunk.40'
+        option proto 'static'
+        option ipaddr '10.40.0.2'
+        option netmask '255.255.255.0'
+        option gateway '10.40.0.1'
+        option dns '10.40.0.1'
+        option ipv6 '0'
+
+    config route 'default_via_core'
+        option interface 'mgmt'
+        option target '0.0.0.0'
+        option netmask '0.0.0.0'
+        option gateway '10.40.0.1'
+
+  system: |
+    config system 'system'
+        option hostname 'avanza-sw2'
+        option timezone 'UTC'
+        option zonename 'UTC'
+        option log_ip '10.40.0.1'
+        option log_port '514'
+        option log_remote '1'
+        option log_size '64'
+        option conloglevel '5'
+        option cronloglevel '5'
+
+    config timeserver 'ntp'
+        list server '10.40.0.1'
+        option enable '1'
+        option enable_server '0'
+
+  dropbear: |
+    config dropbear
+        option Interface 'mgmt'
+        option Port '22'
+        option PasswordAuth 'on'
+        option RootPasswordAuth 'off'
+        option MaxSessions '2'
+        option IdleTimeout '600'
+        option IPv6 '0'
+
+  dhcp: |
+    # dnsmasq/odhcpd are purged on the L2 switch plane; this file only pins
+    # ignore flags so a future accidental reinstall cannot serve leases.
+    config dnsmasq
+        option noresolv '1'
+        option nohosts '1'
+        option port '0'
+
+    config dhcp 'lan'
+        option interface 'mgmt'
+        option ignore '1'

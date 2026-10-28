@@ -1,0 +1,110 @@
+# ============================================================================
+# PROJECT AVANZA — Cloudflare Developer Platform fleet profile
+# Monorepo location : project-avanza-fleet/avanza-edge-orchestrator/
+# Deploy invocation : wrangler deploy  (run from this directory)
+# This is the ONLY cloud-resident element of the fleet. All local MIPS agents
+# (avanza-router-core, avanza-router-secondary) call into it over cloudflared.
+# Platform tier: Workers Paid ($5/mo minimum). Guardrails encoded below keep
+# the fleet inside the included monthly allowances:
+#   - Workers:       10,000,000 req/mo + 30,000,000 CPU-ms/mo included
+#   - Static Assets: requests are FREE and unmetered on all plans
+#   - D1:            25B rows read / 50M rows written / 5GB storage included
+#   - Durable Obj:   ~1M requests + ~400k GB-s duration included
+#   - KV:            10M reads / 1M writes / 1GB storage included
+#   - R2:            10GB-month storage + 1M Class-A / 10M Class-B ops free
+# The dashboard telemetry path is edge-cached (s-maxage=60) via the Cache API,
+# DO telemetry rows are batch-flushed to D1 on alarms, and Workers AI calls
+# are budget-gated — see src/mcp_server.ts.
+#
+# Provision with:
+#   wrangler kv namespace create CACHE_KV
+#   wrangler kv namespace create CONFIG_KV
+#   wrangler d1 create avanza-telemetry
+#   wrangler r2 bucket create avanza-firmware
+# then paste the emitted IDs below, and:
+#   wrangler secret put AVANZA_HMAC_KEY          # 64-hex shared fleet secret
+#   wrangler secret put DASHBOARD_READ_TOKEN     # optional read gate for GUI
+# ============================================================================
+
+name = "avanza-edge-orchestrator"
+main = "src/mcp_server.ts"
+compatibility_date = "2025-09-01"
+workers_dev = true
+
+# ---------------------------------------------------------------------------
+# Static asset pipeline — unmetered single-page monitoring GUI.
+# run_worker_first forces /rpc and /api/* through the Worker (auth + cache +
+# JSON-RPC) before the asset handler can shadow them with the SPA index.
+# ---------------------------------------------------------------------------
+[assets]
+directory = "./public"
+binding = "ASSETS"
+not_found_handling = "single-page-application"
+run_worker_first = ["/rpc", "/rpc/*", "/api/*"]
+
+# Workers AI — anomaly summarisation + guest-request policy scoring.
+[ai]
+binding = "AI"
+
+# Cron: every 5 min DO batch-flush + command sweep; daily D1 retention prune.
+[triggers]
+crons = ["*/5 * * * *", "17 3 * * *"]
+
+[observability]
+enabled = true
+head_sampling_rate = 1.0
+
+[limits]
+cpu_ms = 1000
+
+# ---------------------------------------------------------------------------
+# KV namespaces
+#   CACHE_KV  : fleet version token, manifests, AI budget counters
+#   CONFIG_KV : last-known-good UCI layout hashes, device enrollment state
+# ---------------------------------------------------------------------------
+[[kv_namespaces]]
+binding = "CACHE_KV"
+id = "REPLACE_WITH_KV_CACHE_NAMESPACE_ID"
+
+[[kv_namespaces]]
+binding = "CONFIG_KV"
+id = "REPLACE_WITH_KV_CONFIG_NAMESPACE_ID"
+
+# ---------------------------------------------------------------------------
+# D1 SQLite — telemetry, powerline link health, speedtests, anomalies,
+# guest requests, audit log (schema: schema/d1_schema.sql)
+# ---------------------------------------------------------------------------
+[[d1_databases]]
+binding = "DB"
+database_name = "avanza-telemetry"
+database_id = "REPLACE_WITH_D1_DATABASE_ID"
+
+# R2 — GitOps fleet bundles + firmware rollback blobs + speedtest payload.
+[[r2_buckets]]
+binding = "FIRMWARE"
+bucket_name = "avanza-firmware"
+
+# ---------------------------------------------------------------------------
+# Durable Objects (SQLite-backed classes — mandatory for new DOs)
+#   TelemetryBuffer : per-device ingest buffer, alarm-driven D1 batch flush
+#   CommandLane     : override-lane command queue with TTL expiry alarms
+# ---------------------------------------------------------------------------
+[[durable_objects.bindings]]
+name = "TELEMETRY"
+class_name = "TelemetryBuffer"
+
+[[durable_objects.bindings]]
+name = "COMMANDS"
+class_name = "CommandLane"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["TelemetryBuffer", "CommandLane"]
+
+[vars]
+SCHEMA_VERSION = "2"
+CACHE_TTL_SECONDS = "60"
+TELEMETRY_RETENTION_DAYS = "30"
+GUEST_EVAL_AI_BUDGET_PER_DAY = "500"
+SPEEDTEST_PAYLOAD_BYTES = "5242880"
+HMAC_REPLAY_WINDOW_SECONDS = "300"

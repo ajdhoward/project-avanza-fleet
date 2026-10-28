@@ -1,0 +1,32 @@
+# Git/JetBrains/OS artifacts
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# Node / TypeScript build artifacts
+node_modules/
+dist/
+*.tsbuildinfo
+npm-debug.log*
+
+# Wrangler local state (never publish local runtime state or caches)
+.wrangler/
+.wrangler-preflight/
+.dev.vars
+.dev.vars.*
+
+# Deployment secrets — secrets live ONLY in GitHub Secrets + wrangler secret
+# store. Any file carrying tokens, keys, or account credentials is excluded.
+.env
+.env.*
+*.pem
+*.key
+*.token
+secrets/
+.gh-auth/
+
+# Local packaging output
+*.tar.gz
+*.sha256
+bundle/
