@@ -77,7 +77,7 @@ jobs:
           shellcheck -s busybox -S warning \
             avanza-router-secondary/scripts/strip_secondary.sh
 
-      - name: UCI plan gate — VLAN 10/20/40 interface mapping
+      - name: UCI plan gate — VLAN 10/20/40 interface mapping (avanza.network/1)
         run: |
           python3 - <<'PY'
           import re, sys
@@ -86,27 +86,51 @@ jobs:
           except ImportError:
               sys.exit("pyyaml unavailable on runner")
           spec = yaml.safe_load(open("avanza-router-secondary/configs/network.yml"))
-          assert isinstance(spec, dict), "network.yml: root must be a mapping"
-          sv = spec.get("schema_version")
-          assert sv in (1, "1"), "network.yml: schema_version missing/invalid"
-          vlans = spec.get("vlans") or {}
-          assert vlans, "network.yml: vlans block missing"
-          ports = spec.get("ports") or {}
-          vid_seen = set()
-          for name, v in vlans.items():
-              vid = int(v.get("vid", 0))
-              assert 1 <= vid <= 4094, f"vlan {name}: vid {vid} outside 802.1Q range"
-              assert vid not in vid_seen, f"duplicate vid {vid}"
-              vid_seen.add(vid)
-              for p in (v.get("ports") or []):
-                  assert p in ports, f"vlan {name}: unknown port '{p}'"
-              # rendered UCI grammar spot-check if the plan carries one
-              for line in (v.get("uci") or []):
-                  assert re.match(r"^(config|option|list)\s+\S+", line), \
-                      f"vlan {name}: malformed UCI line: {line!r}"
-          sw = spec.get("switch") or {}
-          assert sw, "network.yml: switch block missing"
-          print(f"UCI plan gate OK — vlans={sorted(vid_seen)} ports={sorted(ports)}")
+          assert spec.get("schema") == "avanza.network/1", "schema tag invalid"
+
+          vlans = spec.get("vlans") or []
+          assert vlans, "vlans plan missing"
+          vids = set()
+          for v in vlans:
+              vid = int(v["id"])
+              assert 1 <= vid <= 4094, f"vlan {v.get('name')}: vid {vid} outside 802.1Q"
+              assert vid not in vids, f"duplicate vid {vid}"
+              vids.add(vid)
+
+          device = spec.get("device") or {}
+          assert device.get("mgmt_vlan") in vids, "device.mgmt_vlan not in vlan plan"
+
+          ports = spec.get("switch", {}).get("ports") or []
+          assert ports, "switch port map missing"
+          names = {p["port"] for p in ports}
+          for p in ports:
+              pv = p.get("vlans") or {}
+              untagged = pv.get("untagged")
+              if untagged is not None:
+                  assert int(untagged) in vids, f"{p['port']}: untagged vid {untagged} undeclared"
+              for t in (pv.get("tagged") or []):
+                  assert int(t) in vids, f"{p['port']}: tagged vid {t} undeclared"
+
+          uci_files = spec.get("uci_files") or {}
+          assert {"network", "system", "dropbear", "dhcp"} <= set(uci_files), \
+              "uci_files must render network/system/dropbear/dhcp"
+          grammar = re.compile(r"^(config|option|list)\s")
+          for fname, body in uci_files.items():
+              for line in body.splitlines():
+                  s = line.strip()
+                  if not s or s.startswith("#"):
+                      continue
+                  assert grammar.match(s), f"{fname}: malformed UCI line: {s!r}"
+
+          net = uci_files["network"]
+          for vid in vids:
+              assert re.search(rf"^config bridge-vlan .+$/.*?option vlan '{vid}'",
+                               net, re.M | re.S), f"bridge-vlan {vid} missing from render"
+          for name in names:
+              assert f"list ports '{name}'" in net, f"port {name} missing from bridge render"
+
+          print(f"UCI plan gate OK — vlans={sorted(vids)} ports={sorted(names)} "
+                f"uci_files={sorted(uci_files)}")
           PY
 
       - name: TypeScript gate — Cloudflare orchestrator (strict)
