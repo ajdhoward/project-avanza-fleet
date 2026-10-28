@@ -1,5 +1,11 @@
 # PROJECT AVANZA FLEET — Unified Infrastructure Monorepo
 
+[![deploy-fleet](https://github.com/ajdhoward/project-avanza-fleet/actions/workflows/deploy-fleet.yml/badge.svg)](https://github.com/ajdhoward/project-avanza-fleet/actions/workflows/deploy-fleet.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
+[![OpenWrt](https://img.shields.io/badge/OpenWrt-25.12.6-00b5e2?logo=openwrt)](https://openwrt.org)
+[![Cloudflare Workers](https://img.shields.io/badge/Cloudflare-Workers%20%245%20plan-f38020?logo=cloudflare)](https://workers.cloudflare.com)
+[![MCP](https://img.shields.io/badge/MCP-2025--06--18-8a2be2)](./avanza-edge-orchestrator/README.md)
+
 > **AI-AUDIT BANNER — READ FIRST**
 > This repository is the authoritative public monorepo layer of the AVANZA
 > hybrid MIPS multi-vendor network fabric. It is structured for automated
