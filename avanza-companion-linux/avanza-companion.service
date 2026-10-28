@@ -1,0 +1,20 @@
+[Unit]
+Description=Project Avanza LAN companion (meeting-mode QoS boost + outage notices)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+EnvironmentFile=-/etc/avanza/companion.env
+ExecStart=/usr/local/bin/avanza-companion.sh
+Restart=always
+RestartSec=15
+# hardening
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=%S/avanza
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

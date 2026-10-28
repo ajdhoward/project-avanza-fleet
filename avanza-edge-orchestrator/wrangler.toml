@@ -1,0 +1,62 @@
+name = "avanza-edge-orchestrator"
+main = "src/traffic_classifier.ts"
+compatibility_date = "2026-10-15"
+workers_dev = true
+
+# Static assets: the control-matrix dashboard served free & unmetered from the
+# same hostname (sync: cp ../../avanza-generative-ui/artifacts/avanza-topology-matrix.html public/index.html)
+assets = { directory = "./public", binding = "ASSETS", not_found_handling = "none" }
+
+[observability]
+enabled = true
+
+[vars]
+RADAR_REGION = "US-WA"
+AVANZA_DEVICE = "avanza-router"
+FLUSH_INTERVAL_MIN = "15"
+AI_MODEL = "@cf/meta/llama-3.2-3b-instruct"
+TURNSTILE_SITEKEY = ""   # free & unlimited — create at dash → Turnstile, add widget for your hostname
+PUBLIC_BASE = ""         # e.g. https://avanza-edge-orchestrator.YOUR-SUBDOMAIN.workers.dev (report links)
+
+[[kv_namespaces]]
+binding = "AVANZA_KV"
+id = "REPLACE_WITH_KV_NAMESPACE_ID"
+
+[[d1_databases]]
+binding = "AVANZA_HISTORY"
+database_name = "avanza-history"
+database_id = "REPLACE_WITH_D1_ID"
+
+[[r2_buckets]]
+binding = "AVANZA_R2"
+bucket_name = "avanza-backups"
+
+[[durable_objects.bindings]]
+name = "AVANZA_STATE"
+class_name = "AvanzaState"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["AvanzaState"]
+
+[ai]
+binding = "AI"
+
+[triggers]
+crons = ["*/5 * * * *", "0 7 * * 1"]
+
+# ---- Secrets (never commit; provision with wrangler) ----
+# wrangler kv namespace create AVANZA_KV     # then paste the id above
+# wrangler d1 create avanza-history          # paste id above, then:
+#   wrangler d1 execute avanza-history --remote --file=./schema.sql
+# wrangler r2 bucket create avanza-backups
+# wrangler secret put AGENT_HMAC_KEY         # 32+ byte hex; same value goes to /etc/avanza/agent.env
+# wrangler secret put APP_CONTROL_KEY        # bearer for the Expo app / extension / companion
+# wrangler secret put EXPO_ACCESS_TOKEN      # expo push access token (optional)
+# wrangler secret put RADAR_API_TOKEN        # Cloudflare API token, Radar read scope (optional)
+# wrangler secret put IODA_API_URL           # full IODA endpoint URL incl. params (optional)
+# wrangler secret put TG_BOT_TOKEN           # Telegram notifier + weekly report link (optional)
+# wrangler secret put TG_CHAT_ID             # Telegram chat target (optional)
+# wrangler secret put TURNSTILE_SECRET       # guest portal (/guest) anti-abuse — Turnstile is free & unlimited
+# wrangler secret put ACCOUNT_API_TOKEN      # optional: Health Checks read for oracle correlation
+# HEALTH_ACCOUNT_ID / HEALTH_CHECK_ID go in [vars] once the check exists (scripts/setup_account.sh §7)

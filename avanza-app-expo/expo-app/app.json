@@ -1,0 +1,40 @@
+{
+	"expo": {
+		"name": "Avanza",
+		"slug": "avanza-app",
+		"scheme": "avanza",
+		"version": "1.0.0",
+		"orientation": "portrait",
+		"newArchEnabled": true,
+		"userInterfaceStyle": "dark",
+		"backgroundColor": "#060913",
+		"splash": {
+			"backgroundColor": "#060913",
+			"resizeMode": "contain"
+		},
+		"ios": {
+			"supportsTablet": true,
+			"bundleIdentifier": "com.avanza.controlmatrix"
+		},
+		"android": {
+			"package": "com.avanza.controlmatrix",
+			"edgeToEdgeEnabled": true
+		},
+		"web": {
+			"bundler": "metro",
+			"output": "static"
+		},
+		"plugins": [
+			"expo-router",
+			[
+				"expo-notifications",
+				{
+					"color": "#22c55e"
+				}
+			]
+		],
+		"extra": {
+			"orchUrl": "https://avanza-edge-orchestrator.YOUR-SUBDOMAIN.workers.dev"
+		}
+	}
+}

@@ -1,0 +1,62 @@
+# ============================================================
+# PROJECT AVANZA / avanza-router-secondary / configs/network.yml
+# TD-W8968 v3 (BCM6318, bmips, DSA) headless L2 switch matrix.
+# Same restricted-YAML subset as the primary transpiler:
+#   section col0 "name:" · item col2 "- key: value" · field col4 · list col6
+# Transpiled by scripts/transpile_network.sh (dry-run default).
+# Port tokens: name = member · name* = untagged/native (PVID) · name:t = tagged
+# ============================================================
+meta:
+  prefix: avanza
+  device_id: avanza-switch
+
+devices:
+  - name: br-switch
+    type: bridge
+    vlan_filtering: "1"
+    stp: "0"
+    igmp_snooping: "1"
+    ports:
+      - lan1
+      - lan2
+      - lan3
+      - lan4
+
+vlans:
+  - device: br-switch
+    vlan: "20"
+    label: media-native-untagged
+    ports:
+      - lan1*
+      - lan2
+      - lan3
+      - lan4
+
+  - device: br-switch
+    vlan: "40"
+    label: fleet-mgmt-tagged-trunk-over-PLC
+    ports:
+      - lan1:t
+
+# Optional: convert lan4 into an IoT drop — move it out of vlan 20 and add:
+#  - device: br-switch
+#    vlan: "30"
+#    label: iot-drop
+#    ports:
+#      - lan1:t
+#      - lan4
+# (primary trunk must then carry VLAN 30 tagged on lan1 as well)
+
+interfaces:
+  - name: switchmedia
+    device: br-switch
+    proto: none
+    label: pure-L2 media bridge member (no IP)
+
+  - name: fleet
+    device: br-switch.40
+    proto: static
+    ipaddr: 192.168.99.2
+    netmask: 255.255.255.0
+    gateway: 192.168.99.1
+    dns: 192.168.99.1

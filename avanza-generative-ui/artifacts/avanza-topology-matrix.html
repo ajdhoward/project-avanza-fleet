@@ -1,0 +1,1035 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>AVANZA · Intelligent Router Control Matrix</title>
+<style>
+  :root{
+    --bg:#060913; --panel:#0a1120; --card:#0d1526; --edge:#1c2a45;
+    --text:#e6edf7; --dim:#8aa0bf; --green:#22c55e; --violet:#a78bfa;
+    --amber:#f59e0b; --red:#ef4444; --cyan:#22d3ee; --sky:#38bdf8; --teal:#2dd4bf;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{background:var(--bg);color:var(--text);font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;min-height:100vh;display:flex;flex-direction:column}
+  header{display:flex;align-items:center;gap:12px;padding:10px 18px;border-bottom:1px solid var(--edge);background:var(--panel);flex-wrap:wrap}
+  header .brand{display:flex;align-items:center;gap:10px}
+  header h1{font-size:13px;font-weight:900;letter-spacing:.28em;margin:0;color:#f1f5f9}
+  header .sub{font-size:10px;color:var(--dim);font-family:ui-monospace,monospace}
+  .pills{margin-left:auto;display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+  .pill{font-size:9.5px;font-weight:800;letter-spacing:.08em;padding:5px 10px;border-radius:999px;border:1px solid}
+  .pill.ok{color:var(--green);border-color:rgba(34,197,94,.5)}
+  .pill.info{color:var(--sky);border-color:rgba(56,189,248,.5)}
+  .pill.warn{color:var(--amber);border-color:rgba(245,158,11,.5)}
+  .pill.err{color:var(--red);border-color:rgba(239,68,68,.6)}
+  .pill.clock{color:var(--dim);border-color:var(--edge);font-family:ui-monospace,monospace;font-weight:600}
+  .dot{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:6px;animation:blink 2.4s ease-in-out infinite}
+  @keyframes blink{0%,100%{opacity:1}50%{opacity:.35}}
+  main{flex:1;display:grid;grid-template-columns:minmax(0,1fr) 390px;gap:12px;padding:12px;min-height:0}
+  .stage{background:var(--panel);border:1px solid var(--edge);border-radius:16px;padding:6px;min-width:0}
+  svg#topo{width:100%;height:auto;display:block;user-select:none}
+  aside{background:var(--panel);border:1px solid var(--edge);border-radius:16px;display:flex;flex-direction:column;min-height:0;max-height:calc(100vh - 150px)}
+  .tabs{display:flex;border-bottom:1px solid var(--edge)}
+  .tab{flex:1;padding:10px 2px;font-size:9.5px;font-weight:900;letter-spacing:.04em;text-align:center;color:#64748b;cursor:pointer;border-bottom:2px solid transparent;background:none;border-top:none;border-left:none;border-right:none}
+  .tab:hover{color:#cbd5e1}
+  .tab.active{color:var(--sky);border-bottom-color:var(--sky);background:#0d1526}
+  #tab-content{padding:12px;overflow-y:auto;display:flex;flex-direction:column;gap:9px}
+  .insp-head{display:flex;gap:10px;align-items:center}
+  .insp-head .ic{width:38px;height:38px;border-radius:10px;background:#111c33;border:1px solid var(--edge);display:flex;align-items:center;justify-content:center;color:var(--sky)}
+  .insp-head .ic svg{width:20px;height:20px}
+  .insp-title{font-weight:800;font-size:14px}
+  .insp-sub{font-size:10px;color:var(--dim);font-family:ui-monospace,monospace}
+  .sect-label{font-size:9px;font-weight:900;letter-spacing:.22em;color:#64748b;margin-top:4px}
+  .block{background:var(--card);border:1px solid var(--edge);border-radius:12px;padding:10px}
+  .grade-row{display:flex;gap:10px;align-items:flex-start}
+  .grade{font-size:19px;font-weight:900;border:2px solid rgba(34,197,94,.45);border-radius:10px;padding:4px 9px;background:#111c33;color:var(--green)}
+  .grade.mid{border-color:rgba(245,158,11,.45);color:var(--amber)}
+  .grade.bad{border-color:rgba(239,68,68,.45);color:var(--red)}
+  .note{font-size:11px;color:#cbd5e1;line-height:1.45;margin:0}
+  .kv{font-size:10px;color:var(--dim);line-height:1.55;font-family:ui-monospace,monospace;margin-top:6px}
+  .lanes{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+  .lane-btn{font-size:10px;font-weight:800;letter-spacing:.04em;border:1px solid var(--edge);background:#0a1120;color:#64748b;border-radius:10px;padding:9px 6px;cursor:pointer;transition:all .15s}
+  .lane-btn:hover{color:#cbd5e1}
+  .lane-btn.active{background:#111c33}
+  .btn{width:100%;border-radius:12px;padding:11px 10px;font-size:11px;font-weight:900;letter-spacing:.05em;cursor:pointer;border:1px solid var(--edge);background:#0a1120;color:var(--dim);transition:all .15s;display:flex;align-items:center;justify-content:center;gap:8px}
+  .btn:hover{color:var(--text);border-color:#33456b}
+  .btn.green{border-color:rgba(34,197,94,.6);color:var(--green)}
+  .btn.green:hover{background:rgba(34,197,94,.08)}
+  .btn.green.active{background:var(--green);color:#052e16}
+  .btn.amber{border-color:rgba(245,158,11,.6);color:var(--amber)}
+  .btn.amber:hover{background:rgba(245,158,11,.08)}
+  .btn.red{border-color:rgba(239,68,68,.6);color:var(--red)}
+  .btn.red:hover{background:rgba(239,68,68,.08)}
+  .btn.cyan{border-color:rgba(34,211,238,.6);color:var(--cyan)}
+  .btn.cyan:hover{background:rgba(34,211,238,.08)}
+  .btn svg{width:14px;height:14px}
+  .btnrow{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+  .switch-row{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 10px;background:var(--card);border:1px solid var(--edge);border-radius:12px}
+  .switch-row .t{font-size:11px;font-weight:700;color:var(--text)}
+  .switch-row .d{font-size:9.5px;color:var(--dim);margin-top:2px;line-height:1.4}
+  .switch{width:40px;height:22px;min-width:40px;border-radius:999px;background:#1e293b;border:1px solid var(--edge);position:relative;cursor:pointer;transition:background .15s}
+  .switch::after{content:"";position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:#64748b;transition:all .15s}
+  .switch.on{background:rgba(34,197,94,.25);border-color:var(--green)}
+  .switch.on::after{left:20px;background:var(--green)}
+  .switch.amber.on{background:rgba(245,158,11,.25);border-color:var(--amber)}
+  .switch.amber.on::after{background:var(--amber)}
+  .seg{display:flex;gap:4px}
+  .seg button{flex:1;font-size:9px;font-weight:800;padding:7px 2px;border-radius:8px;border:1px solid var(--edge);background:#0a1120;color:#64748b;cursor:pointer}
+  .seg button.active{border-color:var(--green);color:var(--green);background:#111c33}
+  .empty{font-size:12px;color:var(--dim);line-height:1.6}
+  .statgrid{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:6px}
+  .stat{background:var(--card);border:1px solid var(--edge);border-radius:10px;padding:8px;font-size:10px;color:var(--dim)}
+  .stat b{display:block;font-size:14px;margin-top:2px;font-family:ui-monospace,monospace}
+  table.dev{width:100%;border-collapse:collapse;font-size:10px}
+  table.dev th{color:#64748b;font-size:8.5px;letter-spacing:.12em;text-align:left;padding:5px 4px;border-bottom:1px solid var(--edge);text-transform:uppercase}
+  table.dev td{padding:6px 4px;border-bottom:1px solid #12203a;color:#cbd5e1;font-family:ui-monospace,monospace}
+  table.dev tr{cursor:pointer}
+  table.dev tr:hover td{background:#101b31}
+  .mini{font-size:9px;font-weight:800;padding:3px 6px;border-radius:6px;border:1px solid var(--edge);background:#0a1120;color:var(--dim);cursor:pointer}
+  .mini:hover{color:var(--text)}
+  .badge{display:inline-block;font-size:8.5px;font-weight:800;padding:2px 6px;border-radius:999px;border:1px solid}
+  .bar{height:8px;border-radius:99px;background:#111c33;border:1px solid var(--edge);overflow:hidden;margin-top:5px}
+  .bar i{display:block;height:100%;border-radius:99px}
+  .posture{width:100%;border-collapse:collapse;font-size:9.5px;font-family:ui-monospace,monospace}
+  .posture td{padding:4px 6px;border-bottom:1px solid #12203a;color:#cbd5e1}
+  .posture td:first-child{color:var(--text);font-weight:700}
+  footer{display:grid;grid-template-columns:repeat(4,minmax(0,1fr)) minmax(0,2.2fr);gap:10px;padding:0 12px 12px}
+  .fstat{background:var(--panel);border:1px solid var(--edge);border-radius:12px;padding:10px 12px}
+  .fstat .l{font-size:9px;font-weight:800;letter-spacing:.14em;color:#64748b;text-transform:uppercase}
+  .fstat .v{font-size:19px;font-weight:900;margin-top:3px;font-family:ui-monospace,monospace}
+  .fstat .s{font-size:9px;color:var(--dim)}
+  #console{background:#04070d;border:1px solid var(--edge);border-radius:12px;padding:8px 10px;font-family:ui-monospace,monospace;font-size:9.5px;line-height:1.55;color:rgba(134,239,172,.85);height:104px;overflow-y:auto}
+  #console .t{color:#475569}
+  #console .w{color:#fbbf24}
+  #console .e{color:#f87171}
+  .lane-base{fill:none;stroke-width:3;opacity:.16}
+  .lane-flow{fill:none;stroke-width:2;stroke-dasharray:10 14;opacity:.75;animation:dashflow 1.6s linear infinite}
+  @keyframes dashflow{to{stroke-dashoffset:-48}}
+  .mdns-flow{fill:none;stroke:var(--amber);stroke-width:2;stroke-dasharray:2 8;opacity:.9;animation:dashflow 2.2s linear infinite}
+  .blocked-flow{fill:none;stroke:var(--red);stroke-width:2.5;stroke-dasharray:6 10;opacity:.75;animation:dashflow 1.1s linear infinite}
+  .ctrl{fill:none;stroke:var(--cyan);stroke-width:1;stroke-dasharray:2 6;opacity:.45;animation:dashflow 3.2s linear infinite}
+  .temp-link{fill:none;stroke:var(--green);stroke-width:2;stroke-dasharray:4 8;opacity:.95;animation:dashflow .9s linear infinite}
+  .node-card{cursor:pointer}
+  .node-card .card-bg{transition:stroke .12s}
+  .node-card:hover .card-bg{stroke:var(--sky)}
+  .node-card.selected .card-bg{stroke:var(--sky);stroke-width:2}
+  .node-card.temp-active .card-bg{stroke:var(--green);stroke-width:2}
+  .node-card.paused .card-bg{stroke:var(--red);stroke-dasharray:4 3}
+  .shield-hit .shield-disc{fill:#7f1d1d}
+  .shield-hit .shield-ring{stroke:#fecaca;stroke-width:3}
+  .zone-label{font-weight:800;letter-spacing:.06em}
+  .mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+  @media (max-width:1200px){
+    main{grid-template-columns:1fr}
+    aside{max-height:none}
+    footer{grid-template-columns:1fr 1fr}
+  }
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">
+    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/></svg>
+    <div>
+      <h1>AVANZA · INTELLIGENT ROUTER CONTROL MATRIX</h1>
+      <div class="sub">Archer C7 v5 · OpenWrt 25.12.6 (apk/fw4) · CAKE SQM · umdns · usteer · Cloudflare free-tier edge plane</div>
+    </div>
+  </div>
+  <div class="pills">
+    <span class="pill ok"><span class="dot" style="background:var(--green)"></span>WAN UP · CAKE 400/20</span>
+    <span class="pill info"><span class="dot" style="background:var(--sky)"></span>TUNNEL QUIC</span>
+    <span class="pill ok" id="fw-pill"><span class="dot" style="background:var(--green)"></span>FW 25.12.6 ✓</span>
+    <span class="pill ok" id="oracle-pill"><span class="dot" style="background:var(--green)"></span>ORACLE: HEALTHY</span>
+    <span class="pill clock" id="clock">--:--:--</span>
+  </div>
+</header>
+
+<main>
+  <section class="stage">
+    <svg id="topo" viewBox="0 0 1600 920" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <symbol id="ic-laptop" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="11" rx="2"/><path d="M2 19h20"/></symbol>
+        <symbol id="ic-phone" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="2.5" width="10" height="19" rx="2.5"/><path d="M11 18.5h2"/></symbol>
+        <symbol id="ic-server" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="7" rx="2"/><rect x="3" y="13" width="18" height="7" rx="2"/><path d="M7 7.5h.01M7 16.5h.01"/></symbol>
+        <symbol id="ic-tv" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="7" width="19" height="13" rx="2"/><path d="M8 3l4 4 4-4"/></symbol>
+        <symbol id="ic-gamepad" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 11h4M8 9v4"/><circle cx="15" cy="12" r="1"/><circle cx="18" cy="9" r="1"/><path d="M17.3 5H6.7a4 4 0 0 0-4 3.6C2.6 9.4 2 14.5 2 16a3 3 0 0 0 3 3c1 0 1.5-.5 2-1l1.4-1.4a2 2 0 0 1 1.4-.6h4.4a2 2 0 0 1 1.4.6L17 18c.5.5 1 1 2 1a3 3 0 0 0 3-3c0-1.5-.6-6.6-.7-7.3a4 4 0 0 0-4-3.7z"/></symbol>
+        <symbol id="ic-speaker" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4.5" y="2.5" width="15" height="19" rx="2"/><circle cx="12" cy="14.5" r="4"/><path d="M12 6.5h.01"/></symbol>
+        <symbol id="ic-camera" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m22 8-6 4 6 4V8Z"/><rect x="2" y="6" width="14" height="12" rx="2"/></symbol>
+        <symbol id="ic-zap" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/></symbol>
+        <symbol id="ic-thermo" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 4v10.5a4 4 0 1 1-4 0V4a2 2 0 0 1 4 0Z"/></symbol>
+        <symbol id="ic-router" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="14" width="20" height="8" rx="2"/><path d="M6 18h.01M10 18h.01M15 10v4M17.8 7.2a4 4 0 0 0-5.6 0M20.7 4.3a8 8 0 0 0-11.3 0"/></symbol>
+        <symbol id="ic-shield" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 13c0 5-3.5 7.5-7.7 9a1 1 0 0 1-.6 0C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.2-2.7a1.2 1.2 0 0 1 1.6 0C14.5 3.8 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/></symbol>
+        <symbol id="ic-shield-x" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 13c0 5-3.5 7.5-7.7 9a1 1 0 0 1-.6 0C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.2-2.7a1.2 1.2 0 0 1 1.6 0C14.5 3.8 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9.5 9.5 5 5M14.5 9.5l-5 5"/></symbol>
+        <symbol id="ic-cloud" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/></symbol>
+        <symbol id="ic-activity" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></symbol>
+        <symbol id="ic-wifi" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 8.8a15 15 0 0 1 20 0M5 12.9a10 10 0 0 1 14 0M8.5 16.4a5 5 0 0 1 7 0M12 20h.01"/></symbol>
+        <symbol id="ic-users" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/></symbol>
+      </defs>
+
+      <g id="cloud-band">
+        <rect x="400" y="14" width="800" height="150" rx="26" fill="#0b1322" stroke="#1f3a5f"/>
+        <text x="800" y="40" text-anchor="middle" font-size="11" font-weight="800" letter-spacing="3" fill="#38bdf8">CLOUDFLARE EDGE · FREE-TIER OFFLOAD PLANE</text>
+        <g id="cloud-boxes"></g>
+      </g>
+
+      <path d="M 800 252 L 800 164" stroke="#334155" stroke-width="7" opacity=".55" fill="none"/>
+      <text x="808" y="212" font-size="9" fill="#64748b" class="mono">WAN · CAKE shaped 400/20 · PPPoE ovh 8</text>
+
+      <path class="ctrl" d="M 705 252 C 668 205 598 175 532 140"/>
+      <path class="ctrl" d="M 800 252 C 815 215 855 180 888 140"/>
+      <path class="ctrl" d="M 895 252 C 950 212 1020 180 1068 140"/>
+      <text x="592" y="198" font-size="8" fill="#155e75" class="mono" transform="rotate(-38 592 198)">telemetry · HMAC</text>
+      <text x="838" y="200" font-size="8" fill="#155e75" class="mono" transform="rotate(52 838 200)">directives · actions</text>
+      <text x="998" y="198" font-size="8" fill="#155e75" class="mono" transform="rotate(40 998 198)">outage · firmware</text>
+
+      <!-- Powerline (PLC) backhaul: router -> media zone wired drop -->
+      <path d="M 700 364 C 560 418 452 452 452 496" stroke="#fb923c" stroke-width="2.5" fill="none" stroke-dasharray="1 7" opacity=".85"/>
+      <use href="#ic-zap" x="548" y="410" width="18" height="18" color="#fb923c"/>
+      <text x="430" y="404" font-size="8.5" fill="#fb923c" class="mono">PLC AV2000 backhaul · 187 Mbps PHY · −6.2 dB · same-phase ✓</text>
+      <text x="430" y="416" font-size="8" fill="#7c4a12" class="mono">media-zone wired drop (Fire TV / TV / console via adapter switch)</text>
+
+      <g id="zones"></g>
+      <g id="lanes-layer"></g>
+      <g id="temp-layer"></g>
+      <g id="particle-layer"></g>
+
+      <path class="mdns-flow" d="M 300 496 C 330 452 470 452 500 496"/>
+      <text x="400" y="446" text-anchor="middle" font-size="9.5" fill="#f59e0b" class="mono">mDNS UDP 5353 · umdns reflection (mgmt ⇄ media)</text>
+
+      <path class="blocked-flow" id="blocked-path" d="M 1078 620 C 1000 720 800 828 600 834 C 400 840 220 800 130 744"/>
+      <g id="shield">
+        <circle class="shield-disc" cx="600" cy="834" r="19" fill="#450a0a"/>
+        <circle class="shield-ring" cx="600" cy="834" r="19" fill="none" stroke="#ef4444" stroke-width="1.5"/>
+        <use href="#ic-shield-x" x="590" y="824" width="20" height="20" color="#f87171"/>
+        <text x="600" y="871" text-anchor="middle" font-size="9.5" font-weight="800" fill="#f87171" letter-spacing="1">🔒 LATERAL MOVEMENT · DROP · <tspan id="blocked-count">0</tspan> blocked</text>
+        <text x="600" y="885" text-anchor="middle" font-size="8.5" fill="#8aa0bf" class="mono">nft counter avanza_lateral_blocked · fw4: iot→mgmt/media REJECT · guest: no lateral at all</text>
+      </g>
+
+      <g class="node-card" id="router-card">
+        <rect class="card-bg" x="670" y="252" width="260" height="112" rx="14" fill="#0d1526" stroke="#1c2a45"/>
+        <use href="#ic-router" x="686" y="266" width="22" height="22" color="#34d399"/>
+        <text x="716" y="283" font-size="13" font-weight="800" fill="#e6edf7">TP-Link Archer C7 v5</text>
+        <text x="686" y="302" font-size="9.5" fill="#8aa0bf" class="mono">OpenWrt 25.12.6 · fw4/nftables · apk · 128MB RAM</text>
+        <g font-size="8.5" font-weight="700">
+          <rect x="686" y="314" width="58" height="16" rx="8" fill="#111c33" stroke="#1c2a45"/><text x="715" y="325" text-anchor="middle" fill="#7dd3fc">CAKE SQM</text>
+          <rect x="749" y="314" width="46" height="16" rx="8" fill="#111c33" stroke="#1c2a45"/><text x="772" y="325" text-anchor="middle" fill="#7dd3fc">umdns</text>
+          <rect x="800" y="314" width="66" height="16" rx="8" fill="#111c33" stroke="#1c2a45"/><text x="833" y="325" text-anchor="middle" fill="#7dd3fc">extroot 7.1G</text>
+          <rect x="871" y="314" width="52" height="16" rx="8" fill="#111c33" stroke="#1c2a45"/><text x="897" y="325" text-anchor="middle" fill="#7dd3fc">usteer</text>
+        </g>
+        <text x="686" y="352" font-size="9" fill="#8aa0bf" class="mono">RAM 98/128MB · load 0.44 · ct 1284/8192 · overlay 41%</text>
+      </g>
+
+      <g id="nodes-layer"></g>
+    </svg>
+  </section>
+
+  <aside>
+    <div class="tabs">
+      <button class="tab active" data-tab="insp" onclick="AV.setTab('insp')">🔍 INSPECT</button>
+      <button class="tab" data-tab="sec" onclick="AV.setTab('sec')">🛡 SECURITY</button>
+      <button class="tab" data-tab="perf" onclick="AV.setTab('perf')">🚀 PERF</button>
+      <button class="tab" data-tab="dev" onclick="AV.setTab('dev')">📱 DEVICES</button>
+      <button class="tab" data-tab="mnt" onclick="AV.setTab('mnt')">🛠 MAINT</button>
+    </div>
+    <div id="tab-content"></div>
+  </aside>
+</main>
+
+<footer>
+  <div class="fstat"><div class="l">🎮 Realtime lane</div><div class="v" style="color:var(--green)" id="st-pps">1240</div><div class="s">pkts/s · EF 0x2e · CAKE voice tin</div></div>
+  <div class="fstat"><div class="l">📺 Bulk streaming</div><div class="v" style="color:var(--violet)" id="st-mbps">386</div><div class="s">Mb/s · AF41 0x28 · media zone isolated</div></div>
+  <div class="fstat"><div class="l">🔒 Lateral drops</div><div class="v" style="color:var(--red)" id="st-blocked">0</div><div class="s">IoT→LAN/MEDIA attempts rejected</div></div>
+  <div class="fstat"><div class="l">🟡 mDNS reflect</div><div class="v" style="color:var(--amber)" id="st-mdns">12</div><div class="s">pkt/s · UDP 5353 mgmt⇄media</div></div>
+  <div id="console"></div>
+</footer>
+
+<script>
+"use strict";
+var $ = function(id){ return document.getElementById(id); };
+var SVGNS = "http://www.w3.org/2000/svg";
+
+var LANES = {
+  priority:{ label:"🎮 PRIORITY · EF",    color:"#22c55e", dscp:"0x2e", nftset:"avanza_lane_priority" },
+  video:   { label:"📺 VIDEO · AF41",     color:"#a78bfa", dscp:"0x28", nftset:"avanza_lane_video" },
+  bulk:    { label:"📦 BULK · CS1",       color:"#f59e0b", dscp:"0x08", nftset:"avanza_lane_bulk" },
+  normal:  { label:"· BEST EFFORT",       color:"#8aa0bf", dscp:"0x00", nftset:"—" }
+};
+
+var ZONES = {
+  mgmt: { label:"[ Management Zone ]",      sub:"192.168.10.0/24 · br-lan · forward: DROP",   stroke:"#155e75", tint:"rgba(8,51,68,0.35)",  x:24 },
+  media:{ label:"[ Media / Streaming Zone ]", sub:"192.168.20.0/24 · br-media · forward: DROP", stroke:"#5b21b6", tint:"rgba(46,16,101,0.30)", x:414 },
+  iot:  { label:"[ Smart Home IoT Zone ]",  sub:"192.168.30.0/24 · br-iot · lateral: BLOCKED", stroke:"#7f1d1d", tint:"rgba(69,10,10,0.30)",  x:804 },
+  guest:{ label:"[ Guest Network ]",        sub:"192.168.40.0/24 · br-guest · isolate: ON",    stroke:"#0f766e", tint:"rgba(4,47,46,0.35)",   x:1194 }
+};
+
+var NODE_POS = {
+  laptop:{x:48,y:560}, phone:{x:220,y:560}, nas:{x:48,y:692},
+  firetv:{x:438,y:560}, tv:{x:438,y:692}, console:{x:610,y:560},
+  speaker:{x:828,y:560}, camera:{x:1000,y:560}, plugs:{x:828,y:692}, thermo:{x:1000,y:692},
+  guestphone:{x:1218,y:560}, visitor:{x:1390,y:560}
+};
+
+var LANE_PATHS = {
+  laptop:  "M 126 560 L 126 528 C 126 508 170 500 210 496 C 210 452 720 430 755 364 L 772 300 C 778 250 560 200 620 164",
+  phone:   "M 298 560 L 298 522 C 298 506 252 500 210 496 C 210 452 720 430 755 364 L 772 300 C 778 250 560 200 620 164",
+  firetv:  "M 516 560 L 516 524 C 516 508 560 500 600 496 C 600 452 770 430 785 364 L 795 300 C 800 255 700 200 720 164",
+  tv:      "M 516 692 L 516 660 C 516 640 545 636 566 640 C 590 600 600 540 600 496 C 600 452 770 430 785 364 L 795 300 C 800 255 700 200 720 164",
+  console: "M 688 560 L 688 524 C 688 508 645 500 600 496 C 600 452 770 430 785 364 L 795 300 C 800 260 790 200 820 164",
+  speaker: "M 906 560 L 906 524 C 906 508 950 500 990 496 C 990 452 830 430 815 364 L 828 300 C 835 252 880 200 920 164",
+  camera:  "M 1078 560 L 1078 524 C 1078 508 1035 500 990 496 C 990 452 830 430 815 364 L 828 300 C 835 252 880 200 920 164",
+  plugs:   "M 906 692 L 906 660 C 906 640 935 636 956 640 C 980 600 990 540 990 496 C 990 452 830 430 815 364 L 828 300 C 835 252 880 200 920 164",
+  thermo:  "M 1078 692 L 1078 660 C 1078 640 1050 636 1029 640 C 1005 600 990 540 990 496 C 990 452 830 430 815 364 L 828 300 C 835 252 880 200 920 164",
+  guestphone:"M 1296 560 L 1296 524 C 1296 508 1340 500 1380 496 C 1380 452 880 430 845 364 L 828 300 C 820 252 940 200 980 164",
+  visitor: "M 1468 560 L 1468 524 C 1468 508 1424 500 1380 496 C 1380 452 880 430 845 364 L 828 300 C 820 252 940 200 980 164"
+};
+
+var ROUTER = {
+  id:"router", name:"TP-Link Archer C7 v5", ip:"192.168.10.1", mac:"B0:4E:26:71:9C:44",
+  zone:"mgmt", lane:"normal", icon:"ic-router", mdns:true,
+  privacy:{ grade:"A+",
+    destinations:["*.workers.dev (orchestrator)","family.cloudflare-dns.com (DoH 1.1.1.3)","pool.ntp.org","sysupgrade.openwrt.org (daily)"],
+    collects:["Metadata-only telemetry (HMAC-signed)","No payloads · no SNI sniffing · ever"],
+    note:"OpenWrt 25.12.6 · CAKE 400/20 · fw4 · umdns · usteer · Extroot 7.1GB (41%) · cloudflared QUIC (GOMEMLIMIT=24MiB)" }
+};
+
+var DEVICES = [
+  { id:"laptop", name:"Admin Laptop", ip:"192.168.10.21", mac:"A4:2B:B0:1C:21:0A", zone:"mgmt", lane:"normal", icon:"ic-laptop", mdns:true, mbToday:2410,
+    privacy:{ grade:"A+", destinations:["github.com","openwrt.org","avanza workers.dev"], collects:["Nothing — OS telemetry disabled"],
+      note:"Trusted management host with full cross-zone rights (fw4 forwards lan→media/iot)." } },
+  { id:"phone", name:"Your Phone", ip:"192.168.10.22", mac:"F0:18:98:2A:77:C1", zone:"mgmt", lane:"priority", icon:"ic-phone", mdns:true, mbToday:1830,
+    privacy:{ grade:"A", destinations:["exp.host (push)","avanza workers.dev"], collects:["Expo push token (yours only)"],
+      note:"Control-plane identity. All [Grant Temporary Phone Access] flows originate from this IP." } },
+  { id:"nas", name:"NAS / Extroot Mirror", ip:"192.168.10.30", mac:"00:11:32:0D:44:9B", zone:"mgmt", lane:"bulk", icon:"ic-server", mdns:true, mbToday:640,
+    privacy:{ grade:"A+", destinations:["(local only — no WAN flows observed)"], collects:["Nothing — rollback snapshots + media"],
+      note:"Nightly mirror of /overlay/avanza/rollback + ksmbd share (optional). The camera's lateral probes target this host." } },
+  { id:"firetv", name:"Fire TV Stick 4K", ip:"192.168.20.41", mac:"FC:65:DE:A2:11:3E", zone:"media", lane:"video", icon:"ic-tv", mdns:true, mbToday:4820,
+    privacy:{ grade:"D+", destinations:["primevideo CDN","amazon device telemetry","ad domains → blocked @ 1.1.1.3"], collects:["Viewing history","Alexa voice recordings","Ad identifier"],
+      note:"Cast target discovered from the phone via umdns mDNS reflection (UDP 5353 mgmt⇄media)." } },
+  { id:"tv", name:"Living Room TV", ip:"192.168.20.42", mac:"38:FD:FE:5C:81:20", zone:"media", lane:"video", icon:"ic-tv", mdns:true, mbToday:1290,
+    privacy:{ grade:"C", destinations:["panel-vendor ACR endpoint","streaming CDNs"], collects:["ACR screen fingerprints (opt-out applied)"],
+      note:"Second cast target. ACR domains sinkholed by Gateway family filter + adblock-fast." } },
+  { id:"console", name:"Game Console", ip:"192.168.20.43", mac:"7C:1E:52:9B:03:AA", zone:"media", lane:"priority", icon:"ic-gamepad", mdns:false, mbToday:940,
+    privacy:{ grade:"C+", destinations:["xboxlive.com","msftconnecttest.com","game CDNs","stun 3478/udp"], collects:["Match telemetry","Voice-chat metadata"],
+      note:"Static EF baseline in firewall.yml; STUN/TURN 3478 auto-classified realtime → CAKE voice tin." } },
+  { id:"speaker", name:"Smart Speaker", ip:"192.168.30.51", mac:"44:65:0D:77:12:FF", zone:"iot", lane:"bulk", icon:"ic-speaker", mdns:false, mbToday:180,
+    privacy:{ grade:"D", destinations:["vendor voice cloud","music CDNs"], collects:["Wake-word audio","Voice recordings","Room profiles"],
+      note:"Egress filtered via 1.1.1.3; hardcoded DNS DNAT'd to the router; CS1 bulk tin keeps it polite." } },
+  { id:"camera", name:"IP Camera (Door)", ip:"192.168.30.52", mac:"C8:3A:35:9E:40:17", zone:"iot", lane:"bulk", icon:"ic-camera", mdns:false, mbToday:2140,
+    privacy:{ grade:"F", destinations:["vendor P2P cloud relay (always-on)"], collects:["24/7 video via vendor relay","Motion metadata"],
+      note:"Repeat offender: lateral probes toward the NAS are counted (avanza_lateral_blocked) then REJECTed by fw4." } },
+  { id:"plugs", name:"Smart Plugs ×3", ip:"192.168.30.53", mac:"50:FF:99:12:8C:31", zone:"iot", lane:"bulk", icon:"ic-zap", mdns:false, mbToday:12,
+    privacy:{ grade:"B", destinations:["local MQTT broker (vendor cloud disabled)"], collects:["Switch state","Power draw"],
+      note:"Flashed to local-only mode. DNS/NTP to router only." } },
+  { id:"thermo", name:"Thermostat", ip:"192.168.30.54", mac:"18:B4:30:AA:5D:02", zone:"iot", lane:"bulk", icon:"ic-thermo", mdns:false, mbToday:34,
+    privacy:{ grade:"C", destinations:["vendor schedule cloud"], collects:["Occupancy schedule","Temperature history"],
+      note:"NTP pinned to the router; egress rides the CS1 bulk tin." } },
+  { id:"guestphone", name:"Guest Phone", ip:"192.168.40.101", mac:"9A:3C:11:5E:D2:70", zone:"guest", lane:"normal", icon:"ic-phone", mdns:false, mbToday:310,
+    privacy:{ grade:"B", destinations:["1.1.1.3-filtered egress only"], collects:["Nothing stored beyond flow metadata"],
+      note:"Fully isolated: no routes to LAN/Media/IoT, AP client-isolation ON, 24h DHCP lease, no mDNS reflection." } },
+  { id:"visitor", name:"Visitor Laptop", ip:"192.168.40.102", mac:"E4:A7:C5:0B:19:88", zone:"guest", lane:"normal", icon:"ic-laptop", mdns:false, mbToday:870,
+    privacy:{ grade:"B", destinations:["1.1.1.3-filtered egress only"], collects:["Nothing stored beyond flow metadata"],
+      note:"Same guest policy; DNS-hijack redirect catches hardcoded resolvers." } }
+];
+
+var CLOUD_BOXES = [
+  { x:452, t:"Tunnel",         s:"cloudflared · QUIC egress-only", icon:"ic-cloud",    color:"#38bdf8" },
+  { x:632, t:"Gateway 1.1.1.3", s:"DNS L7 malware+family filter",  icon:"ic-shield",   color:"#34d399" },
+  { x:812, t:"Workers AI",     s:"L7 flow classifier · KV cache",  icon:"ic-activity", color:"#a78bfa" },
+  { x:992, t:"Outage Oracle",  s:"cron 5m · Radar+RSS · ASU fw",   icon:"ic-wifi",     color:"#fbbf24" }
+];
+
+var state = {
+  selected:null,
+  tab:"insp",
+  tempAccess:{},
+  paused:{},
+  blocked:1284,
+  stats:{ pps:1240, mbps:386, mdns:12 },
+  mdnsOn:{ laptop:true, phone:true, nas:true, firetv:true, tv:true },
+  sec:{ dns:"family", adblock:true, hijack:true, wg:true, tunnel:true, usteer:true },
+  speed:{ phase:"idle", pct:0, result:null, history:[
+    { down:412.6, up:20.4, lat:9,  when:"yesterday 18:02" },
+    { down:408.1, up:19.8, lat:11, when:"2 days ago 07:44" } ] },
+  fw:{ current:"25.12.6", latest:"25.12.6", state:"idle" },
+  lastBackup:null,
+  snapshots:[],
+  kvWrites:486
+};
+(function(){
+  var d=new Date();
+  for(var i=1;i<=6;i++){
+    var s=new Date(d.getTime()-i*7*3600*1000);
+    state.snapshots.push(fmtStamp(s));
+  }
+})();
+
+function fmtStamp(d){
+  return ""+d.getFullYear()+String(d.getMonth()+1).padStart(2,"0")+String(d.getDate()).padStart(2,"0")+
+    "-"+String(d.getHours()).padStart(2,"0")+String(d.getMinutes()).padStart(2,"0")+String(d.getSeconds()).padStart(2,"0");
+}
+function el(tag, attrs, parent){
+  var n=document.createElementNS(SVGNS,tag);
+  for(var k in attrs) n.setAttribute(k,attrs[k]);
+  if(parent) parent.appendChild(n);
+  return n;
+}
+function txt(parent,x,y,str,attrs){
+  var t=el("text",Object.assign({x:x,y:y},attrs||{}),parent);
+  t.textContent=str; return t;
+}
+function nowTs(){ return new Date().toTimeString().slice(0,8); }
+function esc(s){ return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
+function log(line,cls){
+  var c=$("console");
+  var p=document.createElement("p");
+  p.style.margin="0";
+  p.innerHTML='<span class="t">'+nowTs()+"</span> "+(cls?'<span class="'+cls+'">'+esc(line)+"</span>":esc(line));
+  c.appendChild(p);
+  while(c.childNodes.length>44) c.removeChild(c.firstChild);
+  c.scrollTop=c.scrollHeight;
+}
+function devById(id){ for(var i=0;i<DEVICES.length;i++) if(DEVICES[i].id===id) return DEVICES[i]; return null; }
+function nodeById(id){ return id==="router"?ROUTER:devById(id); }
+function fmtCountdown(ms){ var s=Math.max(0,Math.floor(ms/1000)); return Math.floor(s/60)+":"+String(s%60).padStart(2,"0"); }
+function secId(ip){ return ip.split(".").join("_"); }
+function zoneOfIp(ip){
+  if(ip.indexOf("192.168.10.")===0) return "lan";
+  if(ip.indexOf("192.168.20.")===0) return "media";
+  if(ip.indexOf("192.168.30.")===0) return "iot";
+  if(ip.indexOf("192.168.40.")===0) return "guest";
+  return "?";
+}
+function isPaused(id){ var u=state.paused[id]; return u!==undefined && (u===0 || u>Date.now()); }
+
+function renderCloudBoxes(){
+  var g=$("cloud-boxes");
+  CLOUD_BOXES.forEach(function(b){
+    el("rect",{x:b.x,y:58,width:156,height:78,rx:12,fill:"#0d1526",stroke:"#1c2a45"},g);
+    el("use",{href:"#"+b.icon,x:b.x+12,y:70,width:20,height:20,color:b.color},g);
+    txt(g,b.x+42,82,b.t,{"font-size":"12","font-weight":"700",fill:"#e6edf7"});
+    txt(g,b.x+42,98,b.s,{"font-size":"8.5",fill:"#8aa0bf",class:"mono"});
+    txt(g,b.x+42,114,"free tier ✓",{"font-size":"8",fill:"#334155",class:"mono"});
+  });
+}
+
+function renderZones(){
+  var g=$("zones");
+  Object.keys(ZONES).forEach(function(z,i){
+    var m=ZONES[z];
+    el("rect",{x:24+i*390,y:496,width:372,height:396,rx:18,fill:m.tint,stroke:m.stroke,"stroke-width":1.5},g);
+    txt(g,24+i*390+18,527,m.label,{"font-size":"13",fill:"#e6edf7",class:"zone-label"});
+    txt(g,24+i*390+18,544,m.sub,{"font-size":"9.5",fill:"#8aa0bf",class:"mono"});
+  });
+}
+
+function laneOf(dev){ return LANES[dev.lane]||LANES.normal; }
+
+function renderLanes(){
+  var g=$("lanes-layer");
+  while(g.firstChild) g.removeChild(g.firstChild);
+  DEVICES.forEach(function(d){
+    if(!LANE_PATHS[d.id]) return;
+    var col=isPaused(d.id)?"#475569":laneOf(d).color;
+    el("path",{d:LANE_PATHS[d.id],class:"lane-base",stroke:col},g);
+    var flow=el("path",{d:LANE_PATHS[d.id],class:"lane-flow",stroke:col},g);
+    flow.dataset.dev=d.id;
+    if(d.id==="nas") flow.style.opacity=".25";
+    if(isPaused(d.id)){ flow.style.opacity=".12"; flow.style.animationPlayState="paused"; }
+  });
+}
+
+function renderNodes(){
+  var g=$("nodes-layer");
+  while(g.firstChild) g.removeChild(g.firstChild);
+  DEVICES.forEach(function(d){
+    var p=NODE_POS[d.id]; if(!p) return;
+    var lane=laneOf(d);
+    var paused=isPaused(d.id);
+    var card=el("g",{class:"node-card"+(paused?" paused":"")+(state.selected===d.id?" selected":"")+(state.tempAccess[d.id]>Date.now()?" temp-active":""),id:"node-"+d.id},g);
+    el("rect",{class:"card-bg",x:p.x,y:p.y,width:156,height:88,rx:12,fill:"#0d1526",stroke:"#1c2a45"},card);
+    el("use",{href:"#"+d.icon,x:p.x+12,y:p.y+12,width:22,height:22,color:paused?"#475569":lane.color},card);
+    txt(card,p.x+44,p.y+24,d.name,{"font-size":"11.5","font-weight":"700",fill:paused?"#64748b":"#e6edf7"});
+    txt(card,p.x+44,p.y+38,d.ip,{"font-size":"9",fill:"#8aa0bf",class:"mono"});
+    el("circle",{cx:p.x+140,cy:p.y+16,r:4,fill:paused?"#ef4444":lane.color},card);
+    txt(card,p.x+12,p.y+64,paused?"⏸ INTERNET PAUSED":lane.label,{"font-size":"8.5","font-weight":"800",fill:paused?"#ef4444":lane.color});
+    var temp=state.tempAccess[d.id];
+    var meta=(temp&&temp>Date.now())?("🔓 temp access · "+fmtCountdown(temp-Date.now()))
+      :(paused&&state.paused[d.id]===0?"blocked · manual resume":"priv "+d.privacy.grade+" · "+d.mac.slice(0,8)+"…");
+    txt(card,p.x+12,p.y+79,meta,{"font-size":"8.5",fill:"#8aa0bf",class:"mono",id:"meta-"+d.id});
+    if(paused){
+      el("rect",{x:p.x,y:p.y,width:156,height:88,rx:12,fill:"#020617",opacity:.45,"pointer-events":"none"},card);
+    }
+    card.addEventListener("click",function(){ AV.selectNode(d.id); });
+  });
+}
+
+function renderTempLinks(){
+  var g=$("temp-layer");
+  while(g.firstChild) g.removeChild(g.firstChild);
+  var phone=NODE_POS.phone;
+  Object.keys(state.tempAccess).forEach(function(id){
+    var until=state.tempAccess[id];
+    if(until<=Date.now()||!NODE_POS[id]) return;
+    var p=NODE_POS[id];
+    el("path",{class:"temp-link",d:"M "+(phone.x+78)+" "+(phone.y+44)+" L "+(p.x+78)+" "+(p.y+44)},g);
+    var mx=(phone.x+78+p.x+78)/2, my=(phone.y+44+p.y+44)/2-10;
+    el("use",{href:"#ic-shield",x:mx-8,y:my-8,width:16,height:16,color:"#22c55e"},g);
+  });
+}
+
+function gradeClass(g){
+  if(g==="A+"||g==="A"||g==="B") return "";
+  if(g==="C"||g==="C+") return "mid";
+  return "bad";
+}
+
+/* ---------------- tabs ---------------- */
+function setTab(t){
+  state.tab=t;
+  document.querySelectorAll(".tab").forEach(function(b){ b.classList.toggle("active",b.dataset.tab===t); });
+  renderTab();
+}
+function renderTab(){
+  var c=$("tab-content");
+  if(state.tab==="insp") c.innerHTML=viewInspector();
+  else if(state.tab==="sec") c.innerHTML=viewSecurity();
+  else if(state.tab==="perf") c.innerHTML=viewPerf();
+  else if(state.tab==="dev") c.innerHTML=viewDevices();
+  else c.innerHTML=viewMaint();
+  bindTab();
+}
+
+function viewInspector(){
+  var id=state.selected;
+  if(!id){
+    return '<div class="sect-label">INSPECTOR</div>' +
+      '<p class="empty">Click any node on the living topology — the <b>router</b>, <b>Fire TV</b>, <b>console</b>, <b>camera</b>, <b>guest phone</b> — for its privacy footprint, Layer-7 lane, parental controls and lateral access.</p>' +
+      '<div class="statgrid">' +
+        '<div class="stat">🎮 realtime<b style="color:var(--green)" id="ins-pps">'+state.stats.pps+' pps</b></div>' +
+        '<div class="stat">📺 video lane<b style="color:var(--violet)" id="ins-mbps">'+state.stats.mbps+' Mb/s</b></div>' +
+        '<div class="stat">🔒 blocked<b style="color:var(--red)" id="ins-blocked">'+state.blocked+'</b></div>' +
+        '<div class="stat">🟡 mDNS refl.<b style="color:var(--amber)" id="ins-mdns">'+state.stats.mdns+'/s</b></div>' +
+      '</div>' +
+      '<div class="block"><div class="sect-label" style="margin:0 0 4px">PIPELINE HEARTBEAT</div>' +
+      '<div class="kv">agent → ingest: HMAC ok · 24 digest entries<br>worker → directives: 0 pending · actions: 0 queued<br>oracle: HEALTHY (0.9) · radar 8.2 · rss quiet · fw 25.12.6 ✓<br>DO flush: next &lt;15m · KV writes today ≈ '+state.kvWrites+'/1000</div></div>';
+  }
+  var d=nodeById(id);
+  var lane=laneOf(d);
+  var temp=state.tempAccess[id], tempActive=temp&&temp>Date.now();
+  var paused=isPaused(id);
+  var h="";
+  h+='<div class="insp-head"><div class="ic"><svg viewBox="0 0 24 24"><use href="#'+d.icon+'"/></svg></div>'+
+     '<div><div class="insp-title">'+esc(d.name)+'</div>'+
+     '<div class="insp-sub">'+d.ip+' · '+d.mac+'<br>'+ZONES[d.zone].label+'</div></div></div>';
+  h+='<div class="sect-label">PRIVACY FOOTPRINT</div>';
+  h+='<div class="block"><div class="grade-row"><span class="grade '+gradeClass(d.privacy.grade)+'">'+d.privacy.grade+'</span>'+
+     '<p class="note">'+esc(d.privacy.note)+'</p></div>'+
+     '<div class="kv">destinations: '+esc(d.privacy.destinations.join(" · "))+'<br>collects: '+esc(d.privacy.collects.join(" · "))+
+     (d.mbToday!==undefined?'<br>data today: '+d.mbToday+' MB · screen/uptime est. '+Math.round(d.mbToday/14/60*10)/10+' h':'')+'</div></div>';
+  if(id!=="router"){
+    h+='<div class="sect-label">LAYER 7 PRIORITY LANE</div><div class="lanes">';
+    Object.keys(LANES).forEach(function(k){
+      var L=LANES[k], act=d.lane===k;
+      h+='<button class="lane-btn'+(act?" active":"")+'" data-lane="'+k+'"'+(act?' style="border-color:'+L.color+';color:'+L.color+'"':'')+'>'+L.label+'</button>';
+    });
+    h+='</div><div class="kv">current: DSCP '+lane.dscp+(lane.nftset!=="—"?" · nft set "+lane.nftset+" (worker-managed, TTL'd)":" · static baseline (firewall.yml)")+'</div>';
+    if(d.zone==="mgmt"||d.zone==="media"){
+      h+='<div class="sect-label">mDNS REFLECTION (umdns · UDP 5353)</div>'+
+         '<div class="switch-row"><div><div class="t">Mirror discovery mgmt ⇄ media</div><div class="d">casting + remote-discovery sequences</div></div>'+
+         '<span class="switch amber'+(state.mdnsOn[d.id]?" on":"")+'" id="mdns-switch"></span></div>';
+    }
+    h+='<div class="sect-label">PARENTAL · INTERNET ACCESS</div>';
+    if(paused){
+      h+='<button class="btn green" id="resume-btn">▶ RESUME INTERNET'+(state.paused[id]!==0?' · <span id="ins-pause-cd">'+fmtCountdown(state.paused[id]-Date.now())+'</span> left':' · blocked indefinitely')+'</button>';
+    }else{
+      h+='<div class="btnrow"><button class="btn amber" id="pause-btn">⏸ PAUSE 1 HOUR</button><button class="btn red" id="block-btn">⏹ BLOCK INDEFINITELY</button></div>';
+    }
+    h+='<div class="kv">mechanism: snapshot → uci REJECT rule (src_ip '+d.ip+', proto all) → fw4 reload → rollback armed 600s → auto-expire.</div>';
+    h+='<div class="sect-label">LATERAL ACCESS</div>';
+    h+='<button class="btn green'+(tempActive?" active":"")+'" id="temp-btn">'+(tempActive?
+        '🔓 PHONE ACCESS GRANTED · <span id="ins-temp-cd">'+fmtCountdown(temp-Date.now())+'</span> — TAP TO REVOKE':
+        '🔒 GRANT TEMPORARY PHONE ACCESS (15 MIN)')+'</button>';
+    h+='<div class="kv">scoped UCI ACCEPT (192.168.10.22 → '+d.ip+') · TTL\'d · rollback-protected · auto-removed at expiry.</div>';
+    if(id==="camera"){
+      h+='<div class="block"><div class="sect-label" style="margin:0 0 4px">🔒 LIVE DROP INDICATOR</div>'+
+         '<div class="kv" style="color:#f87171">avanza_lateral_blocked: <b id="ins-blocked2">'+state.blocked+'</b> packets<br>'+
+         'target: 192.168.10.30 (NAS) tcp/445, tcp/5000 · verdict: REJECT (fw4 iot→lan)</div></div>';
+    }
+  }else{
+    h+='<div class="sect-label">SYSTEM (128MB BUDGET)</div>';
+    h+='<div class="block"><div class="kv">RAM: 98.2 / 128 MB (77%) · load 0.44 0.39 0.35<br>'+
+       'overlay: 2.9G / 7.1G (41%) on USB extroot · conntrack 1284/8192<br>'+
+       'wifi: 9 stations (usteer band-steered 2.4⇄5)<br>'+
+       'sqm: cake 400000/20000 kbit · diffserv3 · host-fair<br>'+
+       'cloudflared: QUIC up · GOMEMLIMIT 24MiB · respawn 3600/5<br>'+
+       'time: NTP verified · last rollback: none (72h clean)</div></div>';
+  }
+  return h;
+}
+
+function viewSecurity(){
+  var dnsLevels=[["off","OFF 1.1.1.1"],["malware","MALWARE 1.1.1.2"],["family","FAMILY 1.1.1.3"]];
+  var h='<div class="sect-label">DNS SECURITY (EDGE-ENFORCED)</div>';
+  h+='<div class="block"><div class="t" style="font-size:11px;font-weight:700">Cloudflare Gateway resolver</div>'+
+     '<div class="d" style="font-size:9.5px;color:var(--dim);margin:4px 0 8px">https-dns-proxy → DoH · zero local RAM cost · L7 filtering at the edge</div><div class="seg" id="dns-seg">';
+  dnsLevels.forEach(function(l){ h+='<button data-dns="'+l[0]+'" class="'+(state.sec.dns===l[0]?"active":"")+'">'+l[1]+'</button>'; });
+  h+='</div></div>';
+  h+='<div class="switch-row"><div><div class="t">Ad & tracker blocking</div><div class="d">adblock-fast · adaway+oisd-lite ≈ 42k domains → dnsmasq (lists on Extroot)</div></div><span class="switch'+(state.sec.adblock?" on":"")+'" data-sec="adblock"></span></div>';
+  h+='<div class="switch-row"><div><div class="t">Hardcoded-DNS hijack</div><div class="d">fw4 DNAT :53 → router for media/iot/guest (Roku/Google/camera class devices)</div></div><span class="switch'+(state.sec.hijack?" on":"")+'" data-sec="hijack"></span></div>';
+  h+='<div class="sect-label">REMOTE ACCESS</div>';
+  h+='<div class="switch-row"><div><div class="t">WireGuard server</div><div class="d">udp/51820 · 1 peer (Pixel 8) · handshake 4m ago · only WAN-open port</div></div><span class="switch'+(state.sec.wg?" on":"")+'" data-sec="wg"></span></div>';
+  h+='<div class="switch-row"><div><div class="t">Cloudflare Tunnel</div><div class="d">cloudflared QUIC egress-only · Access policy: admin@avanza · GOMEMLIMIT 24MiB</div></div><span class="switch'+(state.sec.tunnel?" on":"")+'" data-sec="tunnel"></span></div>';
+  h+='<div class="sect-label">GUEST PORTAL & PUBLIC STATUS</div>';
+  h+='<div class="block"><div class="kv" style="margin-top:0">/status · public verdict page (Cache API 60s, no secrets)<br>/guest · Turnstile-gated unblock requests → owner approves in app → resume action<br>/report/latest · weekly HTML report from R2 (cron Mon 07:00 UTC)<br>pending guest requests: <b style="color:#22d3ee">0</b></div></div>';
+  h+='<div class="sect-label">FIREWALL POSTURE (fw4)</div>';
+  h+='<div class="block"><table class="posture">'+
+     '<tr><td>wan</td><td>input REJECT · fwd REJECT · WG 51820 only</td></tr>'+
+     '<tr><td>lan</td><td>input ACCEPT · fwd DROP · → wan/media/iot</td></tr>'+
+     '<tr><td>media</td><td>input DROP · fwd DROP · → wan + 5353⇄lan</td></tr>'+
+     '<tr><td>iot</td><td>input DROP · fwd DROP · → wan + DNS/NTP/5353→router</td></tr>'+
+     '<tr><td>guest</td><td>input DROP · fwd DROP · → wan + DHCP/DNS/NTP · isolate ON</td></tr>'+
+     '</table><div class="kv">lateral attempts blocked (nft counter): <b style="color:#f87171" id="sec-blocked">'+state.blocked+'</b> · rules active: 214 · includes: 10-avanza-lanes.nft</div></div>';
+  h+='<div class="sect-label">GUEST NETWORK</div>';
+  h+='<div class="block"><div class="kv">SSID Avanza-Guest · 192.168.40.0/24 · 24h leases · AP isolation ON<br>connected: '+DEVICES.filter(function(d){return d.zone==="guest";}).length+' devices · no mDNS reflection · no lateral routes</div></div>';
+  return h;
+}
+
+function viewPerf(){
+  var h='<div class="sect-label">SMART QUEUE MANAGEMENT</div>';
+  h+='<div class="block"><div class="kv" style="margin-top:0">qdisc: <b style="color:var(--green)">CAKE</b> · piece_of_cake.qos · diffserv3 tins<br>'+
+     'shaping: 400 / 20 Mbit (85% of 470/23 line) · linklayer ethernet · overhead 8 (PPPoE)<br>'+
+     'host fairness: triple-isolated · NAT-aware · bufferbloat grade: <b style="color:var(--green)">A</b></div>'+
+     '<button class="btn cyan" id="remeasure-btn" style="margin-top:8px">↻ RE-MEASURE LINE & RESHAPE</button></div>';
+  h+='<div class="sect-label">QOS LANE ROSTERS (live)</div><div class="block"><div class="kv" style="margin-top:0" id="lane-rosters">'+laneRosters()+'</div></div>';
+  h+='<div class="sect-label">SPEED TEST (router-side · speed.cloudflare.com)</div>';
+  h+='<div class="block">';
+  if(state.speed.phase==="idle"){
+    h+='<button class="btn cyan" id="speed-btn">⚡ RUN SPEED TEST</button>';
+  }else{
+    h+='<div style="font-size:10px;color:var(--dim);margin-bottom:4px" id="speed-phase">'+state.speed.phase+'</div>'+
+       '<div class="bar"><i id="speed-bar" style="width:'+state.speed.pct+'%;background:linear-gradient(90deg,#22d3ee,#a78bfa)"></i></div>';
+  }
+  if(state.speed.result){
+    var r=state.speed.result;
+    h+='<div class="kv" style="color:var(--text)">↓ <b style="color:var(--green)">'+r.down.toFixed(1)+'</b> Mb/s · ↑ <b style="color:var(--violet)">'+r.up.toFixed(1)+'</b> Mb/s · RTT <b>'+r.lat+'</b> ms <span style="color:var(--dim)">('+r.when+')</span></div>';
+  }
+  h+='<div class="kv">history: '+state.speed.history.map(function(x){ return x.down.toFixed(0)+"↓/"+x.up.toFixed(0)+"↑ @"+x.when; }).join(" · ")+'</div>';
+  h+='<div class="kv" style="margin-top:2px">method: uclient-fetch __down?bytes=25MB + __up 4MB · /proc/uptime timing · zero new packages</div></div>';
+  h+='<div class="sect-label">BAND STEERING (SMART CONNECT)</div>';
+  h+='<div class="switch-row"><div><div class="t">usteer · single SSID “Avanza”</div><div class="d">2.4G ch6 + 5G ch36 merged · 802.11k/v/r ON · steered 9 clients (24h)</div></div><span class="switch'+(state.sec.usteer?" on":"")+'" data-sec="usteer"></span></div>';
+  h+='<div class="sect-label">POWERLINE (PLC) BACKHAUL</div>';
+  h+='<div class="block"><table class="posture">'+
+     '<tr><td>pair</td><td>router LAN2 ⇄ media-room adapter · AV2000 · AES-128 paired</td></tr>'+
+     '<tr><td>link</td><td>187 Mbps PHY · attenuation −6.2 dB · same electrical phase ✓</td></tr>'+
+     '<tr><td>riders</td><td>Fire TV + Living TV + console wired via adapter switch</td></tr>'+
+     '<tr><td>latency</td><td>+1.8 ms avg · jitter absorbed by CAKE (shaping stays at WAN egress)</td></tr></table>'+
+     '<div class="kv">rules: wall sockets only (no strips/surge protectors) · unmanaged pair = one untagged zone · VLAN trunk needs VLAN-aware PLC · never an mwan3 track member</div></div>';
+  h+='<div class="sect-label">MULTI-WAN FAILOVER (mwan3)</div>';
+  h+='<div class="block"><table class="posture">'+
+     '<tr><td>wan</td><td>PPPoE · ACTIVE · track 1.1.1.2 · rtt 14ms · uptime 3d 4h</td></tr>'+
+     '<tr><td>wanb</td><td>USB tether (rndis) · STANDBY · not connected</td></tr>'+
+     '<tr><td>policy</td><td>wan-primary-failover · sticky 300s · oracle cross-check ON</td></tr></table>'+
+     '<button class="btn red" id="failover-btn" style="margin-top:8px">⚠ SIMULATE WAN FAILURE DRILL</button></div>';
+  return h;
+}
+
+function laneRosters(){
+  function names(lane){
+    var l=DEVICES.filter(function(d){ return d.lane===lane; }).map(function(d){ return esc(d.name); });
+    return l.length?l.join(", "):"—";
+  }
+  return '<span style="color:#22c55e">EF priority:</span> '+names("priority")+
+         '<br><span style="color:#a78bfa">AF41 video:</span> '+names("video")+
+         '<br><span style="color:#f59e0b">CS1 bulk:</span> '+names("bulk")+
+         '<br><span style="color:#8aa0bf">best effort:</span> '+names("normal");
+}
+
+function viewDevices(){
+  var h='<div class="sect-label">NETWORK MAP · CLIENT LIST ('+DEVICES.length+' + router)</div>';
+  h+='<div class="block" style="padding:4px"><table class="dev"><tr><th>device</th><th>zone</th><th>lane</th><th>MB today</th><th></th></tr>';
+  DEVICES.forEach(function(d){
+    var paused=isPaused(d.id);
+    h+='<tr data-dev="'+d.id+'">'+
+       '<td style="color:'+(paused?"#f87171":"#e6edf7")+';font-weight:700">'+esc(d.name)+'<br><span style="color:#64748b">'+d.ip+'</span></td>'+
+       '<td>'+d.zone+'</td>'+
+       '<td style="color:'+laneOf(d).color+'">'+(paused?"⏸":d.lane.slice(0,4).toUpperCase())+'</td>'+
+       '<td>'+d.mbToday+'</td>'+
+       '<td style="white-space:nowrap">'+
+         '<button class="mini" data-act="pause" data-id="'+d.id+'">'+(paused?"▶":"⏸")+'</button> '+
+         '<button class="mini" data-act="rename" data-id="'+d.id+'">✎</button>'+
+       '</td></tr>';
+  });
+  h+='</table></div><div class="kv">rename writes a DHCP static-host record (uci dhcp) · pause = snapshot-first UCI REJECT · click a row to inspect</div>';
+  return h;
+}
+
+function viewMaint(){
+  var h='<div class="sect-label">FIRMWARE</div>';
+  h+='<div class="block"><div class="kv" style="margin-top:0">installed: <b style="color:var(--text)">OpenWrt '+state.fw.current+'</b> · ath79/generic · tplink_archer-c7-v5<br>'+
+     'channel: 25.12 stable (apk) · ASU check: daily via oracle'+
+     (state.fw.state==="checked"?'<br>latest upstream: <b style="color:'+(state.fw.update?"#f59e0b":"#22c55e")+'">'+state.fw.latest+'</b> '+(state.fw.update?"· UPDATE AVAILABLE":"· ✓ up to date"):"")+'</div>'+
+     '<button class="btn cyan" id="fw-btn" style="margin-top:8px">'+(state.fw.state==="checking"?"CHECKING…":"🔎 CHECK FOR UPDATES")+'</button>'+
+     '<div class="kv">install (deliberately manual): ssh → <b>owut check && owut upgrade</b> · config preserved · sysupgrade -c</div></div>';
+  h+='<div class="sect-label">BACKUP & RESTORE (CLOUD)</div>';
+  h+='<div class="block"><div class="kv" style="margin-top:0">last cloud backup: '+(state.lastBackup?'<b style="color:#22c55e">'+state.lastBackup+'</b> · 18.4 KB b64 → KV backup:latest':'<span style="color:#f59e0b">none this session</span>')+'</div>'+
+     '<div class="btnrow" style="margin-top:8px"><button class="btn green" id="backup-btn">⬆ CREATE BACKUP NOW</button><button class="btn" id="download-btn" '+(state.lastBackup?"":'disabled style="opacity:.4"')+'>⬇ DOWNLOAD</button></div>'+
+     '<button class="btn red" id="restore-btn" style="margin-top:6px" '+(state.lastBackup?"":'disabled style="opacity:.4"')+'>⟲ RESTORE LATEST (snapshot-first + rollback armed)</button>'+
+     '<div class="kv">flow: agent tar czf /etc/config | base64 → telemetry → KV → download/restore on demand</div></div>';
+  h+='<div class="sect-label">ROLLBACK SNAPSHOTS ('+state.snapshots.length+'/6 on Extroot)</div><div class="block">';
+  state.snapshots.forEach(function(s){
+    h+='<div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;border-bottom:1px solid #12203a"><span class="kv" style="margin:0">'+s+'</span><button class="mini" data-act="restoresnap" data-id="'+s+'">restore</button></div>';
+  });
+  h+='<div class="kv">every UCI mutation is snapshot-first; pending change window: '+("none")+' · probe: wan-up + gw-ping + orch /health (2/3 fail → auto-restore)</div></div>';
+  h+='<div class="sect-label">EDGE SERVICES & CACHES (L2–L7)</div>';
+  h+='<div class="block"><div class="kv" style="margin-top:0">'+
+     'Cache API (L6): /sdui/manifest s-maxage=15 · /api/outage/status s-maxage=60 · hit ratio <b style="color:#22c55e">93%</b><br>'+
+     'D1 (L4): telemetry_history 2,431 rows · outage_events 7 · device_daily 38 (90-day retention)<br>'+
+     'R2 (L5): backups/latest.tar.gz 18.4 KB · firmware mirror openwrt-25.12.6-…-c7-v5.bin 11.2 MB<br>'+
+     'KV (L3): writes '+state.kvWrites+'/1000 today · cls cache 23 verdicts · 24h TTL<br>'+
+     'DO (L2): AvanzaState resident · ring 24 digests · action queue drained each ingest<br>'+
+     'Pages: avanza.pages.dev · Access policy: admin@avanza (SSO)</div></div>';
+  h+='<div class="sect-label">STORAGE & AGENT</div>';
+  h+='<div class="block"><div class="kv" style="margin-top:0">extroot /overlay: 2.9G / 7.1G<div class="bar"><i style="width:41%;background:var(--green)"></i></div>'+
+     '/tmp (tmpfs): 1.4M / 64M<div class="bar"><i style="width:2%;background:var(--sky)"></i></div>'+
+     'KV write budget today: '+state.kvWrites+'/1000<div class="bar"><i style="width:'+(state.kvWrites/10)+'%;background:var(--violet)"></i></div></div>'+
+     '<div class="kv">agent v1.0.0 · interval 60s · HMAC-SHA256 ✓ · flock single-instance<br>cloudflared uptime 3d 4h · DO flush 15m · log cap 64KB rotate</div></div>';
+  return h;
+}
+
+function bindTab(){
+  var c=$("tab-content");
+  c.querySelectorAll(".lane-btn").forEach(function(b){ b.addEventListener("click",function(){ AV.setLane(state.selected,b.dataset.lane); }); });
+  var ms=$("mdns-switch"); if(ms) ms.addEventListener("click",function(){ AV.toggleMdns(state.selected); });
+  var tb=$("temp-btn"); if(tb) tb.addEventListener("click",function(){ AV.toggleTemp(state.selected); });
+  var pb=$("pause-btn"); if(pb) pb.addEventListener("click",function(){ AV.pauseDev(state.selected,60); });
+  var bb=$("block-btn"); if(bb) bb.addEventListener("click",function(){ AV.pauseDev(state.selected,0); });
+  var rb=$("resume-btn"); if(rb) rb.addEventListener("click",function(){ AV.resumeDev(state.selected); });
+  c.querySelectorAll("[data-sec]").forEach(function(sw){ sw.addEventListener("click",function(){ AV.toggleSec(sw.dataset.sec); }); });
+  var ds=$("dns-seg"); if(ds) ds.querySelectorAll("button").forEach(function(b){ b.addEventListener("click",function(){ AV.setDns(b.dataset.dns); }); });
+  var sb=$("speed-btn"); if(sb) sb.addEventListener("click",AV.runSpeed);
+  var rm=$("remeasure-btn"); if(rm) rm.addEventListener("click",AV.remeasure);
+  var fo=$("failover-btn"); if(fo) fo.addEventListener("click",AV.simFailover);
+  var fb=$("fw-btn"); if(fb) fb.addEventListener("click",AV.checkFw);
+  var bk=$("backup-btn"); if(bk) bk.addEventListener("click",AV.backupNow);
+  var dl=$("download-btn"); if(dl) dl.addEventListener("click",AV.downloadBackup);
+  var rs=$("restore-btn"); if(rs) rs.addEventListener("click",AV.restoreLatest);
+  c.querySelectorAll("tr[data-dev]").forEach(function(tr){ tr.addEventListener("click",function(e){
+    if(e.target.tagName==="BUTTON") return;
+    AV.selectNode(tr.dataset.dev); AV.setTab("insp");
+  }); });
+  c.querySelectorAll('[data-act="pause"]').forEach(function(b){ b.addEventListener("click",function(e){ e.stopPropagation();
+    var d=devById(b.dataset.id); if(isPaused(b.dataset.id)) AV.resumeDev(b.dataset.id); else AV.pauseDev(b.dataset.id,60); }); });
+  c.querySelectorAll('[data-act="rename"]').forEach(function(b){ b.addEventListener("click",function(e){ e.stopPropagation(); AV.renameDev(b.dataset.id); }); });
+  c.querySelectorAll('[data-act="restoresnap"]').forEach(function(b){ b.addEventListener("click",function(){ AV.restoreSnap(b.dataset.id); }); });
+}
+
+/* ---------------- actions ---------------- */
+function selectNode(id){ state.selected=id; state.tab="insp";
+  document.querySelectorAll(".tab").forEach(function(b){ b.classList.toggle("active",b.dataset.tab==="insp"); });
+  renderNodes(); renderTab(); }
+
+function setLane(id,lane){
+  var d=devById(id); if(!d) return;
+  var old=d.lane; d.lane=lane;
+  renderLanes(); renderNodes(); startParticles(); renderTab();
+  if(old!=="normal") log("[agent] nft delete element inet fw4 "+LANES[old].nftset+" { "+d.ip+" }");
+  if(lane!=="normal") log("[agent] nft add element inet fw4 "+LANES[lane].nftset+" { "+d.ip+" timeout 3600s }");
+  log("[worker] lane override cached · "+d.ip+" → "+lane+" ("+LANES[lane].dscp+") · KV cls ttl 24h");
+}
+
+function toggleMdns(id){
+  state.mdnsOn[id]=!state.mdnsOn[id]; renderTab();
+  log("[agent] umdns: "+(state.mdnsOn[id]?"reflecting":"filtering")+" "+nodeById(id).ip+" · /etc/init.d/umdns restart",state.mdnsOn[id]?"":"w");
+}
+
+function snapshot(){ var s=fmtStamp(new Date()); state.snapshots.unshift(s); state.snapshots=state.snapshots.slice(0,6); return s; }
+
+function toggleTemp(id){
+  var d=devById(id); if(!d) return;
+  var cur=state.tempAccess[id];
+  if(cur&&cur>Date.now()){
+    delete state.tempAccess[id];
+    renderNodes(); renderTempLinks(); renderTab();
+    log("[agent] temp-access REVOKED · uci delete firewall.rule_avanza_tmpaccess_"+secId(d.ip)+" · fw4 reload");
+    return;
+  }
+  var s=snapshot();
+  log("[agent] snapshot /etc/config → /overlay/avanza/rollback/"+s+" · rollback ARMED (600s)");
+  log("[agent] uci set firewall.rule_avanza_tmpaccess_"+secId(d.ip)+"=firewall.rule · src=lan dest="+zoneOfIp(d.ip)+" · 192.168.10.22 → "+d.ip+" · target=ACCEPT · fw4 reload");
+  log("[agent] health probe ✓ wan-up ✓ gw-ping ✓ orch /health ✓");
+  state.tempAccess[id]=Date.now()+15*60*1000;
+  renderNodes(); renderTempLinks(); renderTab();
+}
+
+function pauseDev(id,minutes){
+  var d=devById(id); if(!d) return;
+  var s=snapshot();
+  log("[agent] snapshot "+s+" → rollback ARMED (600s)");
+  log("[agent] uci set firewall.rule_avanza_pause_"+secId(d.ip)+"=firewall.rule · src="+zoneOfIp(d.ip)+" · src_ip="+d.ip+" · proto all · target=REJECT · fw4 reload", "w");
+  state.paused[id]=minutes>0?Date.now()+minutes*60000:0;
+  renderLanes(); renderNodes(); startParticles(); renderTab();
+}
+function resumeDev(id){
+  var d=devById(id); if(!d) return;
+  delete state.paused[id];
+  log("[agent] uci delete firewall.rule_avanza_pause_"+secId(d.ip)+" · fw4 reload · internet restored");
+  renderLanes(); renderNodes(); startParticles(); renderTab();
+}
+function renameDev(id){
+  var d=devById(id); if(!d) return;
+  var n=prompt("Nickname for "+d.ip+":",d.name);
+  if(!n||n===d.name) return;
+  d.name=n;
+  log("[agent] uci set dhcp.host_avanza_"+secId(d.ip)+".name='"+n+"' · uci commit dhcp · /etc/init.d/dnsmasq reload");
+  renderNodes(); renderTab();
+}
+
+function toggleSec(key){
+  state.sec[key]=!state.sec[key];
+  var on=state.sec[key];
+  if(key==="adblock"){ log(on?"[agent] apk add adblock-fast · uci set adblock-fast.global.enabled=1 · service enable · lists: adaway+oisd-lite → extroot":"[agent] adblock-fast disabled · /etc/init.d/adblock-fast stop",on?"":"w"); }
+  if(key==="hijack"){ log(on?"[fw4] redirect active: media/iot/guest :53 DNAT → zone gateway (catches hardcoded 8.8.8.8)":"[fw4] DNS-hijack redirects removed · transpile_config.sh --apply to re-add",on?"":"w"); }
+  if(key==="wg"){ log(on?"[wg] interface up · udp/51820 · 1 peer · /etc/init.d/network reload":"[wg] wireguard server stopped — remote access via tunnel only",on?"":"w"); }
+  if(key==="tunnel"){ log(on?"[agent] cloudflared start · GOMEMLIMIT=24MiB GOGC=40 · QUIC reconnecting…":"[agent] cloudflared stopped · telemetry falls back to direct HTTPS",on?"":"w"); }
+  if(key==="usteer"){ log(on?"[usteer] band steering enabled · 802.11k/v neighbor reports + BSS transition":"[usteer] band steering disabled · clients pick bands themselves",on?"":"w"); }
+  renderTab();
+}
+
+function setDns(level){
+  state.sec.dns=level;
+  var urls={off:"https://cloudflare-dns.com/dns-query",malware:"https://security.cloudflare-dns.com/dns-query",family:"https://family.cloudflare-dns.com/dns-query"};
+  log("[agent] uci set https-dns-proxy.@https-dns-proxy[0].resolver_url="+urls[level]+" · /etc/init.d/https-dns-proxy restart");
+  renderTab();
+}
+
+var speedTimer=null;
+function runSpeed(){
+  if(speedTimer) return;
+  state.speed.phase="POST /api/control/speedtest → DO queue → agent…"; state.speed.pct=4; renderTab();
+  log("[worker] action queued: {type:speedtest} → delivered on next ingest");
+  log("[agent] /usr/libexec/avanza/speedtest.sh: uclient-fetch https://speed.cloudflare.com/__down?bytes=25000000");
+  var t0=Date.now();
+  speedTimer=setInterval(function(){
+    var el2=Date.now()-t0;
+    if(el2<1800){ state.speed.phase="measuring download (25 MB)…"; state.speed.pct=Math.min(45,4+el2/40); }
+    else if(el2<3200){ state.speed.phase="measuring upload (4 MB POST /__up)…"; state.speed.pct=Math.min(80,45+(el2-1800)/40); }
+    else if(el2<4200){ state.speed.phase="latency probe (0-byte)…"; state.speed.pct=Math.min(96,80+(el2-3200)/60); }
+    else{
+      clearInterval(speedTimer); speedTimer=null;
+      var r={ down:+(398+Math.random()*24).toFixed(1), up:+(18+Math.random()*4).toFixed(1), lat:Math.round(7+Math.random()*6), when:"just now" };
+      state.speed.result=r; state.speed.phase="idle"; state.speed.pct=100;
+      state.speed.history.unshift(r); state.speed.history=state.speed.history.slice(0,3);
+      log('[agent] speedtest.json → {"down_kbps":'+Math.round(r.down*1000)+',"up_kbps":'+Math.round(r.up*1000)+',"latency_ms":'+r.lat+'} · rides next telemetry');
+      log("[worker] KV put speedtest:latest · app + artifact updated");
+      renderTab(); return;
+    }
+    var ph=$("speed-phase"), bar=$("speed-bar");
+    if(ph){ ph.textContent=state.speed.phase; bar.style.width=state.speed.pct+"%"; }
+  },120);
+  renderTab();
+}
+
+function remeasure(){
+  log("[agent] sqm: measured line 470/23 Mbit → shaping 400/20 (85%) · /etc/init.d/sqm restart · cake re-initialized");
+  state.stats.pps=Math.round(900+Math.random()*800);
+}
+
+function simFailover(){
+  log("[mwan3] wan track 1.1.1.2 lost 3/3 → interface DOWN","e");
+  log("[mwan3] policy wan-primary-failover → switching to wanb (USB tether rndis)","w");
+  log("[oracle] local wan-down=1 · regional signals nominal → LOCAL_FAULT_SUSPECTED (line, not ISP)");
+  log("[mwan3] wanb up · default route via usb0 · sticky 300s · Zoom/streams survived (conntrack preserved)");
+  setTimeout(function(){ log("[mwan3] wan recovered · failing back after sticky window"); },6000);
+}
+
+function checkFw(){
+  state.fw.state="checking"; renderTab();
+  log("[oracle] GET sysupgrade.openwrt.org/api/json/v1/versions.json (daily check, KV-cached)");
+  setTimeout(function(){
+    state.fw.state="checked";
+    state.fw.update=state.fw.latest!==state.fw.current;
+    log("[oracle] ath79/generic · tplink_archer-c7-v5 → latest "+state.fw.latest+" · installed "+state.fw.current+(state.fw.update?" · UPDATE AVAILABLE (push sent)":" · up to date ✓"));
+    renderTab();
+  },1300);
+}
+
+function backupNow(){
+  var s=snapshot();
+  log("[worker] action queued: {type:backup}");
+  log("[agent] tar czf /tmp/avanza/backup.tar.gz -C / etc/config · base64 | tr -d '\\n' → 18.4 KB");
+  log("[agent] backup_b64 rides next ingest → worker KV put backup:latest");
+  state.lastBackup=s+" · 18.4 KB";
+  renderTab();
+}
+
+function downloadBackup(){
+  if(!state.lastBackup) return;
+  var body="# AVANZA config backup (demo payload)\n# generated "+new Date().toISOString()+"\n";
+  ["firewall","sqm","umdns","network","dhcp","wireless"].forEach(function(f){ body+="\n== /etc/config/"+f+" ==\n(uci export would be embedded here by the real agent tar.gz)\n"; });
+  var a=document.createElement("a");
+  a.href="data:application/gzip;base64,"+btoa(unescape(encodeURIComponent(body)));
+  a.download="avanza-config-backup.tar.gz.b64.txt";
+  a.click();
+  log("[app] GET /api/backup (app-token) → download started");
+}
+
+function restoreLatest(){
+  if(!state.lastBackup) return;
+  if(!confirm("Restore the latest cloud backup over the running config? The agent snapshots first and arms the 10-minute rollback.")) return;
+  var s=snapshot();
+  log("[worker] GET KV backup:latest → action {type:restore, b64:…} queued");
+  log("[agent] snapshot "+s+" → base64 -d → tar tzf (verify) → tar xzf -C / → services reload → rollback ARMED","w");
+}
+
+function restoreSnap(s){
+  log("[agent] transpile_config.sh --rollback "+s+" · cp snapshot → /etc/config · firewall/sqm/umdns restart","w");
+}
+
+/* ---------------- particles & sim ---------------- */
+var particles=[], blockedParticles=[];
+function startParticles(){
+  var layer=$("particle-layer");
+  while(layer.firstChild) layer.removeChild(layer.firstChild);
+  particles=[]; blockedParticles=[];
+  DEVICES.forEach(function(d){
+    if(isPaused(d.id)) return;
+    var path=document.querySelector('#lanes-layer path.lane-flow[data-dev="'+d.id+'"]');
+    if(!path) return;
+    var len=path.getTotalLength();
+    var want=d.lane==="priority"?5:d.lane==="video"?4:d.lane==="bulk"?3:2;
+    var speed=d.lane==="priority"?300:d.lane==="video"?190:d.lane==="bulk"?130:90;
+    var col=laneOf(d).color;
+    for(var i=0;i<want;i++){
+      var c=el("circle",{r:d.lane==="priority"?4:3,fill:col,opacity:.95},layer);
+      particles.push({el:c,path:path,len:len,t:Math.random()*len,speed:speed*(0.8+Math.random()*0.4)});
+    }
+  });
+  var bpath=$("blocked-path"), blen=bpath.getTotalLength();
+  for(var j=0;j<2;j++){
+    var bc=el("circle",{r:3.5,fill:"#ef4444"},layer);
+    blockedParticles.push({el:bc,path:bpath,len:blen,t:-Math.random()*200,speed:95});
+  }
+  var mpath=document.querySelector("path.mdns-flow");
+  if(mpath){
+    var mlen=mpath.getTotalLength();
+    particles.push({el:el("circle",{r:2.5,fill:"#f59e0b"},layer),path:mpath,len:mlen,t:0,speed:70});
+    particles.push({el:el("circle",{r:2.5,fill:"#fbbf24"},layer),path:mpath,len:mlen,t:mlen,speed:-70});
+  }
+}
+
+var shieldHitTimer=null;
+function shieldHit(){
+  var s=$("shield");
+  s.classList.add("shield-hit");
+  clearTimeout(shieldHitTimer);
+  shieldHitTimer=setTimeout(function(){ s.classList.remove("shield-hit"); },380);
+  state.blocked+=1;
+  $("blocked-count").textContent=state.blocked;
+  $("st-blocked").textContent=state.blocked;
+  ["ins-blocked","ins-blocked2","sec-blocked"].forEach(function(i){ var e2=$(i); if(e2) e2.textContent=state.blocked; });
+  if(state.blocked%9===0)
+    log("[fw4] drop: 192.168.30.52:44312 → 192.168.10.30:445 tcp REJECT · counter avanza_lateral_blocked="+state.blocked,"e");
+}
+
+var lastFrame=performance.now();
+function frame(ts){
+  var dt=Math.min((ts-lastFrame)/1000,0.05); lastFrame=ts;
+  particles.forEach(function(p){
+    p.t+=p.speed*dt;
+    if(p.speed>0&&p.t>p.len) p.t-=p.len;
+    if(p.speed<0&&p.t<0) p.t+=p.len;
+    var pt=p.path.getPointAtLength(p.t);
+    p.el.setAttribute("cx",pt.x); p.el.setAttribute("cy",pt.y);
+  });
+  blockedParticles.forEach(function(p){
+    p.t+=p.speed*dt;
+    var wall=p.len*0.52;
+    if(p.t>=wall){ p.t=-60-Math.random()*160; shieldHit(); return; }
+    if(p.t<0){ p.el.setAttribute("opacity","0"); return; }
+    var pt=p.path.getPointAtLength(p.t);
+    p.el.setAttribute("cx",pt.x); p.el.setAttribute("cy",pt.y); p.el.setAttribute("opacity","0.9");
+  });
+  requestAnimationFrame(frame);
+}
+
+function tick(){
+  $("clock").textContent=nowTs();
+  var changed=false;
+  Object.keys(state.paused).forEach(function(id){
+    var u=state.paused[id];
+    if(u!==0&&u<=Date.now()){
+      delete state.paused[id]; changed=true;
+      var d=devById(id);
+      if(d) log("[agent] pause schedule EXPIRED · removed firewall.rule_avanza_pause_"+secId(d.ip)+" · internet restored for "+d.name);
+    }
+  });
+  Object.keys(state.tempAccess).forEach(function(id){
+    if(state.tempAccess[id]<=Date.now()){
+      delete state.tempAccess[id]; changed=true;
+      var d=devById(id);
+      if(d) log("[agent] temp-access EXPIRED · removed firewall.rule_avanza_tmpaccess_"+secId(d.ip)+" · fw4 reload · rollback DISARMED");
+    }
+  });
+  if(changed){ renderLanes(); renderNodes(); startParticles(); renderTempLinks(); }
+  var t1=$("ins-temp-cd");
+  if(t1&&state.selected&&state.tempAccess[state.selected]>Date.now()) t1.textContent=fmtCountdown(state.tempAccess[state.selected]-Date.now());
+  var p1=$("ins-pause-cd");
+  if(p1&&state.selected&&state.paused[state.selected]>Date.now()) p1.textContent=fmtCountdown(state.paused[state.selected]-Date.now());
+  DEVICES.forEach(function(d){
+    var m=$("meta-"+d.id);
+    if(m&&state.tempAccess[d.id]>Date.now()) m.textContent="🔓 temp access · "+fmtCountdown(state.tempAccess[d.id]-Date.now());
+  });
+}
+
+function tickStats(){
+  var s=state.stats;
+  s.pps=Math.max(200,Math.min(4200,s.pps+Math.round((Math.random()-0.5)*340)));
+  s.mbps=Math.max(60,Math.min(465,s.mbps+Math.round((Math.random()-0.5)*36)));
+  s.mdns=Math.max(2,Math.min(40,s.mdns+Math.round((Math.random()-0.5)*6)));
+  $("st-pps").textContent=s.pps; $("st-mbps").textContent=s.mbps; $("st-mdns").textContent=s.mdns;
+  var ip=$("ins-pps"); if(ip) ip.textContent=s.pps+" pps";
+  var im=$("ins-mbps"); if(im) im.textContent=s.mbps+" Mb/s";
+  var imd=$("ins-mdns"); if(imd) imd.textContent=s.mdns+"/s";
+}
+
+var AMBIENT=[
+  ["[agent] telemetry → orchestrator · HMAC-SHA256 verified · 2.4KB digest (24 flows)",""],
+  ["[worker] AI classify batch: 3 ambiguous flows → llama-3.2-3b · 1 novel verdict cached (cls:tcp:52.88.x:443)",""],
+  ["[oracle] radar(US-WA) 8.2 · rss 0 fresh hits · local 0 wan-down/30m · verdict HEALTHY (0.9)",""],
+  ["[agent] storage guard: /overlay 41% of 7.1G · snapshots 6/6 · cloudflared QUIC up",""],
+  ["[worker] directive: 192.168.20.41 → video AF41 ttl 900s (high-volume low-conn HTTPS profile)",""],
+  ["[agent] nft add element inet fw4 avanza_lane_video { 192.168.20.41 timeout 900s }",""],
+  ["[fw4] accept: 192.168.10.22 → 192.168.20.41 udp 5353 (mDNS reflection · umdns)",""],
+  ["[usteer] steer 9A:3C:11:5E:D2:70 · 2.4G rssi -71dBm → 5G (bandwidth task)",""],
+  ["[adblock-fast] dnsmasq reload · 42,183 blocked domains · 0 RAM growth (lists on extroot)",""],
+  ["[fw4] redirect: 192.168.30.51:53 → 8.8.8.8:53 DNAT'd to 192.168.30.1 (hardcoded DNS hijack)",""],
+  ["[agent] wan events: 0 transitions · carrier_changes 2 (30d) · rx_errors Δ0",""],
+  ["[DO] AvanzaState alarm flush → KV tel:summary · 2 writes · budget "+state.kvWrites+"/1000 today",""],
+  ["[mwan3] wan track ok (1.1.1.2 rtt 14ms) · wanb standby · no failover",""],
+  ["[worker] classify: 3478/udp from 192.168.20.43 → realtime (STUN/TURN) → lane priority EF",""]
+];
+var ambientIdx=0;
+
+window.AV={ selectNode:selectNode, setTab:setTab, setLane:setLane, toggleMdns:toggleMdns, toggleTemp:toggleTemp,
+  pauseDev:pauseDev, resumeDev:resumeDev, renameDev:renameDev, toggleSec:toggleSec, setDns:setDns,
+  runSpeed:runSpeed, remeasure:remeasure, simFailover:simFailover, checkFw:checkFw,
+  backupNow:backupNow, downloadBackup:downloadBackup, restoreLatest:restoreLatest, restoreSnap:restoreSnap };
+
+function boot(){
+  renderCloudBoxes(); renderZones(); renderLanes(); renderNodes(); renderTempLinks();
+  startParticles(); renderTab();
+  $("router-card").addEventListener("click",function(){ AV.selectNode("router"); });
+  $("blocked-count").textContent=state.blocked;
+  $("st-blocked").textContent=state.blocked;
+  log("[agent] avanza agent v1.0.0 boot · time verified · interval 60s · orch avanza-edge-orchestrator.workers.dev");
+  log("[agent] flock acquired · snapshots 6/6 · rollback window 600s · guest zone br-guest up (isolate ON)");
+  requestAnimationFrame(frame);
+  setInterval(tick,1000);
+  setInterval(tickStats,2000);
+  setInterval(function(){ var m=AMBIENT[ambientIdx%AMBIENT.length]; ambientIdx++; log(m[0],m[1]); },5200);
+}
+boot();
+</script>
+</body>
+</html>

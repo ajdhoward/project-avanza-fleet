@@ -1,0 +1,24 @@
+{
+	"name": "@avanza/generative-ui",
+	"version": "1.0.0",
+	"private": true,
+	"type": "module",
+	"description": "Project Avanza server-driven UI kit: Living Topology Canvas (React + Tailwind + Lucide) and the standalone interactive artifact build.",
+	"main": "src/TopologyCanvas.tsx",
+	"scripts": {
+		"typecheck": "tsc --noEmit",
+		"artifact": "echo 'open artifacts/avanza-topology-matrix.html in a browser'"
+	},
+	"peerDependencies": {
+		"react": "^18.3.0 || ^19.0.0",
+		"react-dom": "^18.3.0 || ^19.0.0"
+	},
+	"dependencies": {
+		"lucide-react": "^0.544.0"
+	},
+	"devDependencies": {
+		"@types/react": "^19.0.0",
+		"tailwindcss": "^4.0.0",
+		"typescript": "^5.6.0"
+	}
+}

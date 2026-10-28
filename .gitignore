@@ -1,0 +1,10 @@
+node_modules/
+.wrangler/
+dist/
+.expo/
+*.log
+.DS_Store
+.dev.vars
+*.tar.gz
+*.tgz
+package-lock.json.bak

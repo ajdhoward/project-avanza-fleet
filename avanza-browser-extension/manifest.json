@@ -1,0 +1,16 @@
+{
+	"manifest_version": 3,
+	"name": "Avanza Network Control",
+	"version": "1.0.0",
+	"description": "Outage verdicts, QoS lane boosts, parental pause and router-side speed tests for your Project Avanza network.",
+	"permissions": ["storage", "alarms", "notifications"],
+	"host_permissions": ["https://*/*", "http://localhost/*"],
+	"background": {
+		"service_worker": "background.js"
+	},
+	"action": {
+		"default_popup": "popup.html",
+		"default_title": "Avanza Control Matrix"
+	},
+	"options_page": "options.html"
+}

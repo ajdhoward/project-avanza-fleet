@@ -1,0 +1,23 @@
+#!/bin/sh /etc/rc.common
+# PROJECT AVANZA / procd service unit / install to /etc/init.d/avanza
+USE_PROCD=1
+START=95
+STOP=10
+
+PROG=/usr/libexec/avanza/lightweight_agent.sh
+
+start_service() {
+	[ -x "$PROG" ] || return 1
+	procd_open_instance avanza
+	procd_set_param command "$PROG"
+	procd_set_param respawn 3600 5 0
+	procd_set_param stdout 1
+	procd_set_param stderr 1
+	procd_set_param term_timeout 10
+	procd_set_param limits nofile="1024 4096"
+	procd_close_instance
+}
+
+service_triggers() {
+	procd_add_reload_trigger "avanza"
+}

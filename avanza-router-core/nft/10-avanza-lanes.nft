@@ -1,0 +1,44 @@
+set avanza_lane_priority {
+	type ipv4_addr
+	flags timeout
+	comment "Worker-assigned realtime hosts - DSCP EF - CAKE voice tin"
+}
+
+set avanza_lane_video {
+	type ipv4_addr
+	flags timeout
+	comment "Worker-assigned streaming hosts - DSCP AF41 - CAKE video tin"
+}
+
+set avanza_lane_bulk {
+	type ipv4_addr
+	flags timeout
+	comment "Worker-assigned background hosts - DSCP CS1 - CAKE bulk tin"
+}
+
+counter avanza_lane_priority_hits {
+}
+
+counter avanza_lane_video_hits {
+}
+
+counter avanza_lane_bulk_hits {
+}
+
+counter avanza_lateral_blocked {
+	comment "IoT lateral movement attempts (counted, then rejected by zone policy)"
+}
+
+chain mangle_postrouting {
+	ip saddr @avanza_lane_priority ip dscp set 0x2e counter name avanza_lane_priority_hits
+	ip saddr @avanza_lane_video ip dscp set 0x28 counter name avanza_lane_video_hits
+	ip saddr @avanza_lane_bulk ip dscp set 0x08 counter name avanza_lane_bulk_hits
+}
+
+chain mangle_prerouting {
+	ip saddr 192.168.30.0/24 ip daddr 192.168.10.0/24 meta l4proto tcp tcp dport != 53 counter name avanza_lateral_blocked
+	ip saddr 192.168.30.0/24 ip daddr 192.168.10.0/24 meta l4proto udp udp dport != { 53, 123, 5353 } counter name avanza_lateral_blocked
+	ip saddr 192.168.30.0/24 ip daddr 192.168.20.0/24 meta l4proto tcp counter name avanza_lateral_blocked
+	ip saddr 192.168.30.0/24 ip daddr 192.168.20.0/24 meta l4proto udp counter name avanza_lateral_blocked
+	ip saddr 192.168.30.0/24 ip daddr { 192.168.10.0/24, 192.168.20.0/24 } meta l4proto != { tcp, udp } counter name avanza_lateral_blocked
+}

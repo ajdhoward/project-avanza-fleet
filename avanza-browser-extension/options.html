@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8"/>
+<title>Avanza extension settings</title>
+<style>
+  :root { color-scheme: dark; }
+  body { margin: 0; background: #060913; color: #e6edf7; font: 13px/1.6 ui-sans-serif, system-ui, sans-serif; }
+  main { max-width: 560px; margin: 40px auto; padding: 0 20px; }
+  h1 { font-size: 15px; letter-spacing: .18em; }
+  label { display: block; font-size: 10px; letter-spacing: .15em; color: #64748b; font-weight: 800; margin: 16px 0 5px; text-transform: uppercase; }
+  input { width: 100%; box-sizing: border-box; background: #0d1526; border: 1px solid #1c2a45; color: #e6edf7;
+          border-radius: 9px; padding: 10px; font: 12px ui-monospace, monospace; }
+  button { margin-top: 20px; width: 100%; padding: 12px; border-radius: 10px; border: 1px solid rgba(34,197,94,.6);
+           background: #0a1120; color: #22c55e; font-weight: 900; font-size: 12px; cursor: pointer; letter-spacing: .08em; }
+  button:hover { background: rgba(34,197,94,.08); }
+  p.hint { color: #8aa0bf; font-size: 11px; }
+  #saved { color: #22c55e; font-size: 11px; margin-top: 10px; display: none; }
+</style>
+</head>
+<body>
+<main>
+  <h1>AVANZA · EXTENSION SETTINGS</h1>
+  <label for="orchUrl">Orchestrator URL (your Worker)</label>
+  <input id="orchUrl" placeholder="https://avanza-edge-orchestrator.YOUR-SUBDOMAIN.workers.dev"/>
+  <label for="appToken">App control key (wrangler secret APP_CONTROL_KEY)</label>
+  <input id="appToken" type="password" placeholder="hex token"/>
+  <label for="dashboardUrl">Dashboard URL (optional, Pages)</label>
+  <input id="dashboardUrl" placeholder="https://avanza.pages.dev"/>
+  <button id="save">SAVE</button>
+  <div id="saved">✓ saved to chrome.storage.sync</div>
+  <p class="hint">The token grants lane/pause/backup control of your network. Use a browser profile you
+  trust; on shared machines remove the extension when done. The Worker validates it on every call and
+  the extension never contacts anything except your orchestrator origin.</p>
+</main>
+<script src="options.js"></script>
+</body>
+</html>
